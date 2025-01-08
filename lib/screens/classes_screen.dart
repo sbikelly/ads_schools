@@ -52,14 +52,15 @@ class _ClassesScreenState extends State<ClassesScreen> {
           .doc(classId)
           .snapshots(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) {
+        if (snapshot.hasError) {
+          return Center(child: Text('Error: ${snapshot.error}'));
+        }
+
+        if (!snapshot.hasData || snapshot.data?.data() == null) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        final classData = SchoolClass.fromFirestore(
-          snapshot.data!.id,
-          snapshot.data!.data() as Map<String, dynamic>,
-        );
+        final classData = SchoolClass.fromFirestore(snapshot.data!);
 
         return Card(
           margin: const EdgeInsets.all(8),
@@ -71,16 +72,14 @@ class _ClassesScreenState extends State<ClassesScreen> {
                   classData.name,
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
-                subtitle: Text('Class Structure'),
+                subtitle: const Text('Class Structure'),
                 trailing: IconButton(
                   icon: const Icon(Icons.edit),
                   onPressed: () => _editClass(classData),
                 ),
               ),
               const Divider(),
-              Expanded(
-                child: _buildClassStructure(classId),
-              ),
+              Expanded(child: _buildClassStructure(classId)),
             ],
           ),
         );
@@ -98,20 +97,19 @@ class _ClassesScreenState extends State<ClassesScreen> {
         if (snapshot.hasError) {
           return Center(child: Text('Error: ${snapshot.error}'));
         }
-        if (!snapshot.hasData) {
+
+        if (!snapshot.hasData || snapshot.data?.docs.isEmpty == true) {
           return const Center(child: CircularProgressIndicator());
         }
 
         final classes = snapshot.data!.docs;
+
         return ListView.builder(
           padding: const EdgeInsets.all(8),
           itemCount: classes.length,
           itemBuilder: (context, index) {
             final classDoc = classes[index];
-            final classData = SchoolClass.fromFirestore(
-              classDoc.id,
-              classDoc.data() as Map<String, dynamic>,
-            );
+            final classData = SchoolClass.fromFirestore(classDoc);
 
             return Card(
               color: _selectedClassId == classData.id
@@ -143,25 +141,27 @@ class _ClassesScreenState extends State<ClassesScreen> {
           .collection('sessions')
           .snapshots(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) {
+        if (snapshot.hasError) {
+          return Center(child: Text('Error: ${snapshot.error}'));
+        }
+
+        if (!snapshot.hasData || snapshot.data?.docs.isEmpty == true) {
           return const Center(child: CircularProgressIndicator());
         }
 
+        final sessions = snapshot.data!.docs;
+
         return ListView.builder(
           padding: const EdgeInsets.all(8),
-          itemCount: snapshot.data!.docs.length,
+          itemCount: sessions.length,
           itemBuilder: (context, index) {
-            final sessionDoc = snapshot.data!.docs[index];
+            final sessionDoc = sessions[index];
             final session = Session.fromFirestore(
-              sessionDoc.id,
-              sessionDoc.data() as Map<String, dynamic>,
-            );
+                sessionDoc.id, sessionDoc.data() as Map<String, dynamic>);
 
             return ExpansionTile(
               title: Text(session.name),
-              children: [
-                _buildTerms(classId, sessionDoc.id),
-              ],
+              children: [_buildTerms(classId, sessionDoc.id)],
             );
           },
         );
@@ -266,6 +266,7 @@ class _ClassesScreenState extends State<ClassesScreen> {
     );
   }
 
+//TODO: Implement a progress indicator for all the upload processes
   Future<void> _confirmDeleteClass(SchoolClass classData) async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -345,7 +346,10 @@ class _ClassesScreenState extends State<ClassesScreen> {
                 return const Center(child: CircularProgressIndicator());
               }
 
-              final performances = snapshot.data!.docs;
+              final performances = snapshot.data!.docs.map((doc) {
+                final data = doc.data() as Map<String, dynamic>;
+                return PerformanceData.fromMap(data);
+              }).toList();
 
               return Column(
                 children: [
@@ -362,26 +366,42 @@ class _ClassesScreenState extends State<ClassesScreen> {
                   const SizedBox(height: 16),
                   Expanded(
                     child: SingleChildScrollView(
-                      child: DataTable(
-                        columns: const [
-                          DataColumn(label: Text('Student ID')),
-                          DataColumn(label: Text('Overall Average')),
-                          DataColumn(label: Text('Position')),
-                          DataColumn(label: Text('Total Students')),
-                        ],
-                        rows: performances.map((doc) {
-                          final data = doc.data() as Map<String, dynamic>;
-                          return DataRow(cells: [
-                            DataCell(
-                                Text(data['studentId']?.toString() ?? '-')),
-                            DataCell(Text(
-                                data['overallAverage']?.toString() ?? '-')),
-                            DataCell(Text(
-                                data['overallPosition']?.toString() ?? '-')),
-                            DataCell(
-                                Text(data['totalStudents']?.toString() ?? '-')),
-                          ]);
-                        }).toList(),
+                      scrollDirection: Axis.horizontal,
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.vertical,
+                        child: DataTable(
+                          columns: const [
+                            DataColumn(label: Text('Student ID')),
+                            DataColumn(
+                                label: Text('Attendance (Present/Absent)')),
+                            DataColumn(label: Text('Total Subjects')),
+                            DataColumn(label: Text('Total Scores')),
+                            DataColumn(label: Text('Overall Average')),
+                            DataColumn(label: Text('Position')),
+                            DataColumn(label: Text('Class Count')),
+                          ],
+                          rows: performances.map((performance) {
+                            return DataRow(cells: [
+                              DataCell(Text(performance.studentId ?? '-')),
+                              DataCell(Text(
+                                  '${performance.attendance?.present ?? '-'} / ${performance.attendance?.absent ?? '-'}')),
+                              DataCell(Text(
+                                  performance.totalSubjects?.toString() ??
+                                      '-')),
+                              DataCell(Text(
+                                  performance.totalScore?.toString() ?? '-')),
+                              DataCell(Text(performance.overallAverage
+                                      ?.toStringAsFixed(2) ??
+                                  '-')),
+                              DataCell(Text(
+                                  performance.overallPosition?.toString() ??
+                                      '-')),
+                              DataCell(Text(
+                                  performance.totalStudents?.toString() ??
+                                      '-')),
+                            ]);
+                          }).toList(),
+                        ),
                       ),
                     ),
                   ),

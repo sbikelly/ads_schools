@@ -63,13 +63,20 @@ class ReportCardScreen1 extends StatelessWidget {
           final Student student = data['student'];
           final List<SubjectScore> subjectScores = data['subjectScores'];
           final TraitsAndSkills? traitsAndSkills = data['traitsAndSkills'];
+          final PerformanceData performanceData = data['performanceData'];
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildStudentInfo(student),
+                Row(
+                  children: [
+                    Expanded(child: _buildStudentInfo(student)),
+                    const SizedBox(width: 20),
+                    Expanded(child: _buildAttendance(performanceData)),
+                  ],
+                ),
                 const SizedBox(height: 20),
                 _buildSubjectScoresTable(subjectScores),
                 const SizedBox(height: 20),
@@ -78,6 +85,35 @@ class ReportCardScreen1 extends StatelessWidget {
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildAttendance(PerformanceData student) {
+    return Card(
+      elevation: 4,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Attendance: ${student.attendance?.present}',
+                style: const TextStyle(fontSize: 18)),
+            const SizedBox(height: 8),
+            Text('Total Subjects: ${student.totalSubjects}',
+                style: const TextStyle(fontSize: 18)),
+            const SizedBox(height: 8),
+            Text('Total Score: ${student.totalScore??0}',
+                style: const TextStyle(fontSize: 16)),
+            const SizedBox(height: 8),
+            Text('Average: ${student.overallAverage}',
+                style: const TextStyle(fontSize: 16)),
+            Text('Position: ${student.overallPosition}',
+                style: const TextStyle(fontSize: 16)),
+            Text('Class Count: ${student.totalStudents}',
+                style: const TextStyle(fontSize: 16)),
+          ],
+        ),
       ),
     );
   }

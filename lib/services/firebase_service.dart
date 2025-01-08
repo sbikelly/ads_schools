@@ -3,102 +3,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 class FirebaseService {
-  /*
-  Future<void> calculateAndStoreOverallPerformance({
-    required String classId,
-    required String sessionId,
-    required String termId,
-  }) async {
-    try {
-      // Get all students in the class
-      final studentsSnapshot = await FirebaseFirestore.instance
-          .collection('students')
-          .where('currentClass', isEqualTo: classId)
-          .get();
-
-      final batch = FirebaseFirestore.instance.batch();
-      final termRef = FirebaseFirestore.instance
-          .collection('classes')
-          .doc(classId)
-          .collection('sessions')
-          .doc(sessionId)
-          .collection('terms')
-          .doc(termId);
-
-      // Calculate performance for each student
-      for (var studentDoc in studentsSnapshot.docs) {
-        final student = Student.fromFirestore(studentDoc);
-        debugPrint('Calculating performance for student: ${student.name}');
-
-        // Get all subject scores for the student
-        final scores = await fetchStudentScores(
-          classId: classId,
-          sessionId: sessionId,
-          termId: termId,
-          regNo: student.regNo,
-        );
-
-        // Calculate overall average
-        if (scores.isNotEmpty) {
-          final totalScores =
-              scores.map((s) => s.total ?? 0).reduce((a, b) => a + b);
-          final overallAverage = totalScores / scores.length;
-          debugPrint('Overall average for ${student.name}: $overallAverage');
-
-          // Store performance data
-          final performanceRef =
-              termRef.collection('studentPerformance').doc(student.regNo);
-          batch.set(performanceRef, {
-            'studentId': student.studentId,
-            'overallAverage': double.parse(overallAverage.toStringAsFixed(2)),
-            'totalSubjects': scores.length,
-            'attendance': {
-              'present': 0, // Update with actual attendance data
-              'absent': 0,
-              'total': 0,
-            }
-          });
-        }
-      }
-
-      await batch.commit();
-
-      // Calculate positions based on overall averages
-      final performanceSnapshot =
-          await termRef.collection('studentPerformance').get();
-      final performances = performanceSnapshot.docs
-          .map((doc) => {
-                'regNo': doc.id,
-                'average': doc.data()['overallAverage'] as double
-              })
-          .toList()
-        ..sort((a, b) =>
-            (b['average'] as double).compareTo(a['average'] as double));
-      debugPrint('Performances: $performances');
-
-      // Update positions
-      final positionBatch = FirebaseFirestore.instance.batch();
-      for (var i = 0; i < performances.length; i++) {
-        final position = i + 1;
-        final ref = termRef
-            .collection('studentPerformance')
-            .doc(performances[i]['regNo'] as String);
-        positionBatch.update(ref, {
-          'overallPosition': position,
-          'totalStudents': performances.length
-        });
-        debugPrint('Updated position for ${performances[i]['regNo']}');
-      }
-
-      await positionBatch.commit();
-      debugPrint('Successfully calculated and stored overall performance');
-    } catch (e) {
-      debugPrint('Error calculating overall performance: $e');
-      throw Exception('Failed to calculate overall performance: $e');
-    }
-  }
-*/
-
   Future<void> calculateAndStoreOverallPerformance({
     required String classId,
     required String sessionId,
@@ -140,14 +44,17 @@ class FirebaseService {
               scores.map((s) => s.total ?? 0).reduce((a, b) => a + b);
           final overallAverage = totalScores / scores.length;
 
+          final performanceData = PerformanceData(
+            studentId: student.studentId,
+            totalScore: totalScores,
+            overallAverage: double.parse(overallAverage.toStringAsFixed(2)),
+            totalSubjects: scores.length,
+            attendance: Attendance(present: 0, absent: 0, total: 0),
+          );
+
           final performanceRef =
               termRef.collection('studentPerformance').doc(student.regNo);
-          batch.set(performanceRef, {
-            'studentId': student.studentId,
-            'overallAverage': double.parse(overallAverage.toStringAsFixed(2)),
-            'totalSubjects': scores.length,
-            'attendance': {'present': 0, 'absent': 0, 'total': 0},
-          });
+          batch.set(performanceRef, performanceData.toMap());
         } else {
           debugPrint('No scores found for student: ${student.name}');
         }
@@ -158,12 +65,13 @@ class FirebaseService {
       // Calculate and update positions
       final performanceSnapshot =
           await termRef.collection('studentPerformance').get();
-      final performances = performanceSnapshot.docs
-          .map((doc) => {
-                'regNo': doc.id,
-                'average': doc.data()['overallAverage'] as double
-              })
-          .toList()
+      final performances = performanceSnapshot.docs.map((doc) {
+        final data = PerformanceData.fromMap(doc.data());
+        return {
+          'regNo': doc.id,
+          'average': data.overallAverage,
+        };
+      }).toList()
         ..sort((a, b) =>
             (b['average'] as double).compareTo(a['average'] as double));
 
@@ -646,9 +554,82 @@ class FirebaseService {
     required String studentId,
   }) async {
     try {
+      // Fetch class name
+      final classDoc = await getDocumentById('classes', classId);
+      final schoolClass = SchoolClass.fromFirestore(classDoc);
+      final className = schoolClass.name;
+
+      // Fetch student information
+      final studentDoc = await getDocumentById('students', studentId);
+      final student = Student.fromFirestore(studentDoc);
+      student.currentClass = className;
+
+      // Fetch subject scores
+      final subjectScores = await fetchStudentScores(
+        classId: classId,
+        sessionId: sessionId,
+        termId: termId,
+        regNo: student.regNo,
+      );
+
+      // Fetch traits and skills scores
+      final traitsAndSkillsDoc = await getDocumentById(
+        'classes/$classId/sessions/$sessionId/terms/$termId/skillsAndTraits',
+        student.regNo,
+      );
+
+      final traitsAndSkills = TraitsAndSkills.fromFirestore(
+        traitsAndSkillsDoc.data() as Map<String, dynamic>,
+      );
+
+      // Fetch overall performance data
+      final performanceDoc = await FirebaseFirestore.instance
+          .collection('classes')
+          .doc(classId)
+          .collection('sessions')
+          .doc(sessionId)
+          .collection('terms')
+          .doc(termId)
+          .collection('studentPerformance')
+          .doc(student.regNo)
+          .get();
+      
+
+      PerformanceData? performanceData;
+      if (performanceDoc.exists) {
+        performanceData = PerformanceData.fromMap(performanceDoc.data()!);
+      }
+      // Organize data for report card screen
+      final reportCardData = {
+        'student': student,
+        'performanceData': performanceData,
+        'subjectScores': subjectScores,
+        'traitsAndSkills': traitsAndSkills,
+      };
+
+      return reportCardData;
+    } catch (e) {
+      debugPrint('Error fetching report card data: $e');
+      throw Exception('Failed to fetch report card data: $e');
+    }
+  }
+
+  static Future<Map<String, dynamic>> getReportCardData1({
+    required String classId,
+    required String sessionId,
+    required String termId,
+    required String studentId,
+  }) async {
+    try {
+      // step 0: Fetch class name
+      final classDoc = await getDocumentById('classes', classId);
+      final schoolClass = SchoolClass.fromFirestore(classDoc);
+      final className = schoolClass.name;
       // Step 1: Fetch student information
       final studentDoc = await getDocumentById('students', studentId);
       final student = Student.fromFirestore(studentDoc);
+
+      student.currentClass = className;
 
       // Step 2: Fetch subject scores
       final subjectScores = await fetchStudentScores(
@@ -657,10 +638,6 @@ class FirebaseService {
         termId: termId,
         regNo: student.regNo,
       );
-      for (var score in subjectScores) {
-        debugPrint(
-            'Subject: ${score.subjectName}, Total: ${score.total}, Position: ${score.position}, Grade: ${score.grade}');
-      }
 
       // Step 3: Fetch traits and skills scores
 
@@ -698,7 +675,7 @@ class FirebaseService {
       }
 */
 
-// Step 3.5: Fetch overall performance data (average, position, attendance)
+// Step 4: Fetch overall performance data (average, position, attendance)
       final performanceDoc = await FirebaseFirestore.instance
           .collection('classes')
           .doc(classId)
@@ -714,7 +691,7 @@ class FirebaseService {
         performanceData = performanceDoc.data()!;
       }
 
-      // Step 4: Organize data for report card screen
+      // Step 6: Organize data for report card screen
       final reportCardData = {
         'student': student,
         'performanceData': performanceData,

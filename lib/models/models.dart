@@ -127,6 +127,101 @@ class Assessment {
       };
 }
 
+class Attendance {
+  int? present;
+  int? absent;
+  int? total;
+
+  Attendance({
+    this.present,
+    this.absent,
+    this.total,
+  });
+
+  // Factory method to create an Attendance object from Firestore data
+  factory Attendance.fromMap(Map<String, dynamic> data) {
+    return Attendance(
+      present: data['present'] ?? 0,
+      absent: data['absent'] ?? 0,
+      total: data['total'] ?? 0,
+    );
+  }
+
+  // Convert the Attendance object to a Firestore-compatible map
+  Map<String, dynamic> toMap() {
+    return {
+      'present': present,
+      'absent': absent,
+      'total': total,
+    };
+  }
+}
+
+class PerformanceData {
+  Attendance? attendance;
+  double? overallAverage;
+  int? overallPosition;
+  String? studentId;
+  int? totalStudents;
+  int? totalSubjects;
+  int? totalScore;
+
+  PerformanceData({
+    this.studentId,
+    this.overallAverage,
+    this.totalSubjects,
+    this.overallPosition,
+    this.totalStudents,
+    this.attendance,
+    this.totalScore,
+  });
+
+  // Factory method to create a PerformanceData object from Firestore data
+  factory PerformanceData.fromFirestore(Map<String, dynamic> data) {
+    return PerformanceData(
+      attendance: Attendance.fromMap(data['attendance']),
+      overallAverage: (data['overallAverage'] ?? 0.0).toDouble(),
+      overallPosition:
+          data['overallPosition'] is int ? data['overallPosition'] as int : 0,
+      studentId: data['studentId'] ?? '',
+      totalStudents:
+          data['totalStudents'] is int ? data['totalStudents'] as int : 0,
+      totalSubjects:
+          data['totalSubjects'] is int ? data['totalSubjects'] as int : 0,
+      totalScore: data['totalScore'] is int ? data['totalScore'] as int : 0,
+    );
+  }
+
+  // Convert a Firestore map into a PerformanceData object
+  factory PerformanceData.fromMap(Map<String, dynamic> data) {
+    return PerformanceData(
+      attendance: Attendance.fromMap(data['attendance']),
+      overallAverage: (data['overallAverage'] ?? 0.0).toDouble(),
+      overallPosition:
+          data['overallPosition'] is int ? data['overallPosition'] as int : 0,
+      studentId: data['studentId'] ?? '',
+      totalStudents:
+          data['totalStudents'] is int ? data['totalStudents'] as int : 0,
+      totalSubjects:
+          data['totalSubjects'] is int ? data['totalSubjects'] as int : 0,
+      totalScore: data['totalScore'] is int ? data['totalScore'] as int : 0,
+    );
+  }
+
+  // Convert the PerformanceData object to a Firestore-compatible map
+  Map<String, dynamic> toMap() {
+    return {
+      'studentId': studentId,
+      'totalScore': totalScore,
+      'overallAverage': overallAverage,
+      'totalSubjects': totalSubjects,
+      'overallPosition': overallPosition,
+      'totalStudents': totalStudents,
+      'attendance': attendance?.toMap(),
+    };
+  }
+}
+
 class ReportCard {
   final String studentId;
   final String term;
@@ -208,13 +303,22 @@ class SchoolClass {
     required this.name,
     required this.createdAt,
   });
-
+/*
   factory SchoolClass.fromFirestore(String id, Map<String, dynamic> data) =>
       SchoolClass(
         id: id,
         name: data['name'],
         createdAt: (data['createdAt'] as Timestamp).toDate(),
       );
+*/
+  factory SchoolClass.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return SchoolClass(
+      id: doc.id,
+      name: data['name'],
+      createdAt: (data['createdAt'] as Timestamp).toDate(),
+    );
+  }
 
   Map<String, dynamic> toMap() => {
         'name': name,
@@ -243,7 +347,7 @@ class Student {
   final String? studentId;
   final String regNo;
   final String name;
-  final String currentClass;
+  String currentClass;
   final String? photoUrl;
   final Map<String, dynamic> personalInfo;
 

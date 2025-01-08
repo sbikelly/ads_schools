@@ -8,12 +8,17 @@ class PDFService {
       PdfPageFormat pageFormat, reportCardData) async {
     final pdf = pw.Document();
 
-    // final badge = pw.MemoryImage((await rootBundle.load('assets/badge.png')).buffer.asUint8List(),);
+    final badge = pw.MemoryImage(
+      (await rootBundle.load('assets/badge.png')).buffer.asUint8List(),
+    );
 
-    //final passport = pw.MemoryImage((await rootBundle.load('assets/profile.jpg')).buffer.asUint8List(),);
+    final passport = pw.MemoryImage(
+      (await rootBundle.load('assets/profile.jpg')).buffer.asUint8List(),
+    );
 
     final Student student = reportCardData['student'];
     final List<SubjectScore> subjectScores = reportCardData['subjectScores'];
+    final PerformanceData performanceData = reportCardData['performanceData'];
     final TraitsAndSkills? traitsAndSkills = reportCardData['traitsAndSkills'];
 
     pdf.addPage(
@@ -22,12 +27,10 @@ class PDFService {
         margin: const pw.EdgeInsets.all(20),
         //pageTheme: _buildTheme(pageFormat),
         build: (context) => [
-          _buildHeader(
-              // badge, /*passport*/
-              ),
-          pw.SizedBox(height: 5),
+          _buildHeader(badge, passport),
+          pw.SizedBox(height: 8),
           _buildSessionInfo(),
-          pw.SizedBox(height: 5),
+          pw.SizedBox(height: 8),
           pw.Row(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
@@ -35,12 +38,13 @@ class PDFService {
                   child: _buildStudentInfoSection(student)), // Student Info
               pw.SizedBox(width: 8), // Spacing between sections
               pw.Expanded(
-                  child: _buildAttendanceSection(student)), // Attendance
+                  child:
+                      _buildAttendanceSection(performanceData)), // Attendance
             ],
           ),
           pw.SizedBox(height: 8),
           _buildSubjectScoreTable(subjectScores),
-          pw.SizedBox(height: 8),
+          pw.SizedBox(height: 10),
           pw.Row(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
@@ -54,8 +58,7 @@ class PDFService {
             ],
           ),
           pw.SizedBox(height: 5),
-          _buildRemarksSection(
-              'The student has shown great improvement in his studies and is encouraged to keep it up.'),
+          _buildRemarksSection(performanceData.overallAverage),
           pw.Spacer(),
           _buildGradingKeys(),
         ],
@@ -65,76 +68,33 @@ class PDFService {
     return pdf.save();
   }
 
-  static pw.Widget _buildAttendanceSection(Student data) {
-    const padin = pw.EdgeInsets.all(2);
+  static pw.TableRow studentInfoRow(String title, String value) {
+    return pw.TableRow(
+      children: [
+        pw.Padding(
+          padding: pw.EdgeInsets.all(2),
+          child: pw.Text('$title:',
+              style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+        ),
+        pw.Padding(
+          padding: pw.EdgeInsets.all(2),
+          child: pw.Text(value),
+        ),
+      ],
+    );
+  }
+
+  static pw.Widget _buildAttendanceSection(PerformanceData student) {
     return pw.Table(
       border: null,
       children: [
-        pw.TableRow(
-          children: [
-            pw.Padding(
-              padding: padin,
-              child: pw.Text('Attendance:',
-                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-            ),
-            pw.Padding(
-              padding: padin,
-              child: pw.Text('124'),
-            ),
-          ],
-        ),
-        pw.TableRow(
-          children: [
-            pw.Padding(
-              padding: padin,
-              child: pw.Text('Total Scores:',
-                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-            ),
-            pw.Padding(
-              padding: padin,
-              child: pw.Text('1638'),
-            ),
-          ],
-        ),
-        pw.TableRow(
-          children: [
-            pw.Padding(
-              padding: padin,
-              child: pw.Text('Average:',
-                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-            ),
-            pw.Padding(
-              padding: padin,
-              child: pw.Text('81.90'),
-            ),
-          ],
-        ),
-        pw.TableRow(
-          children: [
-            pw.Padding(
-              padding: padin,
-              child: pw.Text('Position:',
-                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-            ),
-            pw.Padding(
-              padding: padin,
-              child: pw.Text('4th'),
-            ),
-          ],
-        ),
-        pw.TableRow(
-          children: [
-            pw.Padding(
-              padding: padin,
-              child: pw.Text('Class Count:',
-                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-            ),
-            pw.Padding(
-              padding: padin,
-              child: pw.Text('14'),
-            ),
-          ],
-        ),
+        studentInfoRow(
+            'Attendance', student.attendance?.present.toString() ?? '0'),
+        studentInfoRow('Total Subjects', student.totalSubjects.toString()),
+        studentInfoRow('Total Scores', student.totalScore.toString()),
+        studentInfoRow('Average', student.overallAverage.toString()),
+        studentInfoRow('Position', student.overallPosition.toString()),
+        studentInfoRow('Class Count', student.totalStudents.toString()),
       ],
     );
   }
@@ -163,7 +123,7 @@ class PDFService {
         children: [
           pw.Text('GRADING SYSTEM:',
               style: pw.TextStyle(
-                  fontSize: 10,
+                  fontSize: 8,
                   letterSpacing: 0,
                   fontWeight: pw.FontWeight.bold,
                   color: PdfColors.blue900)),
@@ -176,10 +136,10 @@ class PDFService {
                 return pw.Column(
                   children: [
                     pw.Text('${grade['range']}',
-                        style: const pw.TextStyle(fontSize: 9)),
-                    pw.Text('${grade['grade']} (${grade['remark']})',
+                        style: const pw.TextStyle(fontSize: 7)),
+                    pw.Text('${grade['grade']}(${grade['remark']})  ',
                         style: pw.TextStyle(
-                            fontSize: 8,
+                            fontSize: 6,
                             fontWeight: pw.FontWeight.bold,
                             color: PdfColors.blue800)),
                   ],
@@ -192,16 +152,15 @@ class PDFService {
     );
   }
 
-  static pw.Widget _buildHeader(
-      //pw.MemoryImage badge,
-      /* pw.MemoryImage passport*/
-      ) {
+  static pw.Widget _buildHeader(pw.MemoryImage badge, pw.MemoryImage passport) {
     return pw.Row(
       mainAxisAlignment: pw.MainAxisAlignment.center,
       children: [
         pw.Container(
-            height: 50, width: 50, child: pw.Text('badge') // pw.Image(badge),
-            ),
+          height: 60,
+          width: 60,
+          child: pw.Image(badge),
+        ),
         pw.SizedBox(width: 20),
         pw.Expanded(
           child: pw.Column(
@@ -224,15 +183,51 @@ class PDFService {
         ),
         pw.SizedBox(width: 20),
         pw.Container(
-            height: 50,
-            width: 50,
-            child: pw.Text('student Passport') //pw.Image(passport),
-            ),
+          height: 60,
+          width: 60,
+          child: pw.Image(passport),
+        ),
       ],
     );
   }
 
-  static pw.Widget _buildRemarksSection(String comment) {
+  static pw.Widget _buildRemarksSection(double? average) {
+    String comment = '';
+    if (average != null) {
+      switch (average.toInt()) {
+        case >= 85:
+          comment = 'Outstanding performance! Keep up the excellent work.';
+          break;
+        case >= 80:
+          comment = 'Very commendable effort. You are doing very well.';
+          break;
+        case >= 75:
+          comment = 'Good progress. Maintain this momentum.';
+          break;
+        case >= 70:
+          comment = 'A solid performance. Continue striving for excellence.';
+          break;
+        case >= 65:
+          comment = 'A creditable effort. Aim to improve further.';
+          break;
+        case >= 60:
+          comment =
+              'Satisfactory performance. Put in more effort to achieve greater heights.';
+          break;
+        case >= 50:
+          comment =
+              'Adequate performance. With more focus, you can improve significantly.';
+          break;
+        case >= 40:
+          comment = 'Needs improvement. Pay attention to areas of difficulty.';
+          break;
+        default:
+          comment =
+              'Significant improvement is required. Consistent effort is necessary.';
+          break;
+      }
+    }
+
     return pw.Container(
       decoration: pw.BoxDecoration(
         border: pw.Border.all(color: PdfColors.grey),
@@ -243,7 +238,7 @@ class PDFService {
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           pw.Text(
-            'REMARKS & RECOMMENDATIONS',
+            'REMARKS',
             style: pw.TextStyle(
               fontWeight: pw.FontWeight.bold,
               color: PdfColors.blue800,
@@ -251,10 +246,12 @@ class PDFService {
           ),
           pw.Divider(thickness: 0.5),
           pw.SizedBox(height: 2),
-          pw.Text(
-            comment,
-            // Removed pw.Expanded
-          ),
+          pw.Center(
+            child: pw.Text(
+              comment,
+              style: pw.TextStyle(fontSize: 12),
+            ),
+          )
         ],
       ),
     );
@@ -300,8 +297,7 @@ class PDFService {
     );
   }
 
-  static pw.Widget _buildStudentInfoSection(Student data) {
-    const padin = pw.EdgeInsets.all(2);
+  static pw.Widget _buildStudentInfoSection(Student student) {
     return pw.Row(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
@@ -309,84 +305,13 @@ class PDFService {
           child: pw.Table(
             border: null,
             children: [
-              pw.TableRow(
-                children: [
-                  pw.Padding(
-                    padding: padin,
-                    child: pw.Text('Reg. No:',
-                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                  ),
-                  pw.Padding(
-                    padding: padin,
-                    child: pw.Text('HKA/2024/001'),
-                  ),
-                ],
-              ),
-              pw.TableRow(
-                children: [
-                  pw.Padding(
-                    padding: padin,
-                    child: pw.Text('Name:',
-                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                  ),
-                  pw.Padding(
-                    padding: padin,
-                    child: pw.Text('Nenwarang Paul Michael'),
-                  ),
-                ],
-              ),
-              pw.TableRow(
-                children: [
-                  pw.Padding(
-                    padding: padin,
-                    child: pw.Text('Class:',
-                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                  ),
-                  pw.Padding(
-                    padding: padin,
-                    child: pw.Text('Primary 1'),
-                  ),
-                ],
-              ),
-              pw.TableRow(
-                children: [
-                  pw.Padding(
-                    padding: padin,
-                    child: pw.Text('Term Start:',
-                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                  ),
-                  pw.Padding(
-                    padding: padin,
-                    child: pw.Text('2024-09-11'),
-                  ),
-                ],
-              ),
-              pw.TableRow(
-                children: [
-                  pw.Padding(
-                    padding: padin,
-                    child: pw.Text('Term Ended:',
-                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                  ),
-                  pw.Padding(
-                    padding: padin,
-                    child: pw.Text('2024-12-13'),
-                  ),
-                ],
-              ),
-              pw.TableRow(
-                children: [
-                  pw.Padding(
-                    padding: padin,
-                    child: pw.Text('Next Resumption:',
-                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                  ),
-                  pw.Padding(
-                    padding: padin,
-                    child: pw.Text('2025-01-09'),
-                  ),
-                ],
-              ),
+              studentInfoRow('Reg. No', student.regNo),
+              studentInfoRow('Name', student.name),
+              studentInfoRow('Class', student.currentClass),
+              studentInfoRow('Term Start', '2024-09-09'),
+              studentInfoRow('Term Ended', '2024-12-09'),
+              studentInfoRow('Term Duration', '3 months'),
+              studentInfoRow('Next Term Begins', '2025-01-09'),
             ],
           ),
         ),
@@ -425,13 +350,15 @@ class PDFService {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        pw.Text(
+        /* 
+       pw.Text(
           'Cognitive Domain:',
           style: pw.TextStyle(
             fontWeight: pw.FontWeight.bold,
             fontSize: 12,
           ),
         ),
+        */
         pw.SizedBox(height: 8),
         pw.TableHelper.fromTextArray(
           headers: headers,
