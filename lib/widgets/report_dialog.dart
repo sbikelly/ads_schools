@@ -3,105 +3,150 @@ import 'package:ads_schools/services/pdf_service.dart';
 import 'package:flutter/material.dart';
 import 'package:printing/printing.dart';
 
-class ReportCardScreen1 extends StatelessWidget {
+class ReportDialog extends StatefulWidget {
   final Map<String, dynamic> reportCardData;
-
-  const ReportCardScreen1({
-    super.key,
+  const ReportDialog({
     required this.reportCardData,
+    super.key,
   });
 
   @override
-  Widget build(BuildContext context) {
-    // Extracting data from reportCardData
-    final Student student = reportCardData['student'];
-    final List<SubjectScore> subjectScores = reportCardData['subjectScores'];
-    final TraitsAndSkills? traitsAndSkills = reportCardData['traitsAndSkills'];
-    final PerformanceData performanceData = reportCardData['performanceData'];
+  State<ReportDialog> createState() => _ReportDialogState();
+}
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Report Card for ${student.name}'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.print),
-            onPressed: () async {
-              await Printing.layoutPdf(
-                onLayout: (format) =>
-                    PDFService.generateReportCard(format, reportCardData),
-              );
-            },
+class _ReportDialogState extends State<ReportDialog> {
+  @override
+  Widget build(BuildContext context) {
+    final data = widget.reportCardData;
+
+    final Student student = data['student'];
+    final List<SubjectScore> subjectScores = data['subjectScores'];
+    final TraitsAndSkills? traitsAndSkills = data['traitsAndSkills'];
+    final PerformanceData performanceData = data['performanceData'];
+
+    // Extracting data from reportCardData
+    return AlertDialog(
+      titlePadding: const EdgeInsets.all(0),
+      title: Stack(
+        children: [
+          /*
+          Positioned(
+            top: 0,
+            right: 2,
+            child: IconButton(
+              icon: const Icon(
+                Icons.close,
+              ),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ),*/
+          Padding(
+            padding:
+                const EdgeInsets.symmetric(vertical: 16.0, horizontal: 20.0),
+            child: Text(
+              student.name,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Close'),
+        ),
+        SizedBox(
+          width: 16.0,
+        ),
+        ElevatedButton.icon(
+          onPressed: () async {
+            // Generate and print the report card
+            await Printing.layoutPdf(
+              onLayout: (format) =>
+                  PDFService.generateReportCard(format, widget.reportCardData),
+            );
+          },
+          icon: const Icon(Icons.print),
+          label: const Text('Print'),
+        ),
+      ],
+      content: SizedBox(
+          width: 800,
+          height: 600,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(child: _buildStudentInfo(student)),
-                const SizedBox(width: 20),
-                Expanded(child: _buildAttendance(performanceData)),
+                _buildStudentInfo(student: student, perf: performanceData),
+                const SizedBox(height: 20),
+                _buildSubjectScoresTable(subjectScores),
+                const SizedBox(height: 20),
+                _buildTraitsAndSkills(traitsAndSkills),
               ],
             ),
-            const SizedBox(height: 20),
-            _buildSubjectScoresTable(subjectScores),
-            const SizedBox(height: 20),
-            _buildTraitsAndSkills(traitsAndSkills),
-          ],
-        ),
-      ),
+          )),
     );
   }
 
-  Widget _buildAttendance(PerformanceData student) {
-    return Card(
-      elevation: 4,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Attendance: ${student.attendance?.present}',
-                style: const TextStyle(fontSize: 18)),
-            const SizedBox(height: 8),
-            Text('Total Subjects: ${student.totalSubjects}',
-                style: const TextStyle(fontSize: 18)),
-            const SizedBox(height: 8),
-            Text('Total Score: ${student.totalScore ?? 0}',
-                style: const TextStyle(fontSize: 16)),
-            const SizedBox(height: 8),
-            Text('Average: ${student.overallAverage}',
-                style: const TextStyle(fontSize: 16)),
-            Text('Position: ${student.overallPosition}',
-                style: const TextStyle(fontSize: 16)),
-            Text('Class Count: ${student.totalStudents}',
-                style: const TextStyle(fontSize: 16)),
-          ],
+  Row infoItem(String title, String info) {
+    return Row(
+      children: [
+        Expanded(child: Text('$title ')),
+        Expanded(
+          child: Text(info,
+              style:
+                  const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         ),
-      ),
+      ],
     );
   }
 
-  Widget _buildStudentInfo(Student student) {
+  Widget _buildStudentInfo(
+      {required Student student, required PerformanceData perf}) {
     return Card(
       elevation: 4,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Name: ${student.name}', style: const TextStyle(fontSize: 18)),
-            const SizedBox(height: 8),
-            Text('Registration No: ${student.regNo}',
-                style: const TextStyle(fontSize: 16)),
-            const SizedBox(height: 8),
-            Text('Class: ${student.currentClass}',
-                style: const TextStyle(fontSize: 16)),
-          ],
-        ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  infoItem('Registration No:', student.regNo),
+                  const SizedBox(height: 8),
+                  infoItem('Current Class:', student.currentClass),
+                  const SizedBox(
+                    height: 8,
+                  ),
+                  infoItem('Number In Class:', '${perf.totalStudents ?? 0}'),
+                  const SizedBox(height: 8),
+                  infoItem('Number of Subjects:', '${perf.totalSubjects ?? 0}')
+                ],
+              ),
+            ),
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  infoItem('Attendance:', '${perf.attendance?.present ?? 0}'),
+                  const SizedBox(height: 8),
+                  infoItem('Total Score:', '${perf.totalScore ?? 0}'),
+                  const SizedBox(
+                    height: 8,
+                  ),
+                  infoItem('Average:', '${perf.overallAverage ?? 0.0}'),
+                  const SizedBox(height: 8),
+                  infoItem('Position:', '${perf.overallPosition ?? 0}')
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

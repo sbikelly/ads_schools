@@ -1,10 +1,10 @@
-import 'package:ads_schools/services/subject_template.dart';
+import 'package:ads_schools/services/template_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../models/models.dart';
 import '../services/firebase_service.dart';
-import '../widgets/class_dialog.dart';
+import '../widgets/dialogs.dart';
 
 class ClassesScreen extends StatefulWidget {
   const ClassesScreen({super.key});
@@ -156,8 +156,7 @@ class _ClassesScreenState extends State<ClassesScreen> {
           itemCount: sessions.length,
           itemBuilder: (context, index) {
             final sessionDoc = sessions[index];
-            final session = Session.fromFirestore(
-                sessionDoc.id, sessionDoc.data() as Map<String, dynamic>);
+            final session = Session.fromFirestore(sessionDoc);
 
             return ExpansionTile(
               title: Text(session.name),
@@ -226,10 +225,7 @@ class _ClassesScreenState extends State<ClassesScreen> {
           shrinkWrap:
               true, // Ensures the ListView takes up only the required space
           children: snapshot.data!.docs.map((termDoc) {
-            final term = Term.fromFirestore(
-              termDoc.id,
-              termDoc.data() as Map<String, dynamic>,
-            );
+            final term = Term.fromFirestore(termDoc);
 
             return Padding(
               padding: const EdgeInsets.only(left: 16),
@@ -267,6 +263,7 @@ class _ClassesScreenState extends State<ClassesScreen> {
   }
 
 //TODO: Implement a progress indicator for all the upload processes
+
   Future<void> _confirmDeleteClass(SchoolClass classData) async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -326,221 +323,17 @@ class _ClassesScreenState extends State<ClassesScreen> {
       String classId, String sessionId, String termId) async {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Class Performance'),
-        content: SizedBox(
-          width: 800,
-          height: 600,
-          child: StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('classes')
-                .doc(classId)
-                .collection('sessions')
-                .doc(sessionId)
-                .collection('terms')
-                .doc(termId)
-                .collection('studentPerformance')
-                .snapshots(),
-            builder: (context, snapshot) {
-              if (!snapshot.hasData) {
-                return const Center(child: CircularProgressIndicator());
-              }
-
-              final performances = snapshot.data!.docs.map((doc) {
-                final data = doc.data() as Map<String, dynamic>;
-                return PerformanceData.fromMap(data);
-              }).toList();
-
-              return Column(
-                children: [
-                  ElevatedButton.icon(
-                    onPressed: () =>
-                        FirebaseService().calculateAndStoreOverallPerformance(
-                      classId: classId,
-                      sessionId: sessionId,
-                      termId: termId,
-                    ),
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('Calculate Overall Performance'),
-                  ),
-                  const SizedBox(height: 16),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.vertical,
-                        child: DataTable(
-                          columns: const [
-                            DataColumn(label: Text('Student ID')),
-                            DataColumn(
-                                label: Text('Attendance (Present/Absent)')),
-                            DataColumn(label: Text('Total Subjects')),
-                            DataColumn(label: Text('Total Scores')),
-                            DataColumn(label: Text('Overall Average')),
-                            DataColumn(label: Text('Position')),
-                            DataColumn(label: Text('Class Count')),
-                          ],
-                          rows: performances.map((performance) {
-                            return DataRow(cells: [
-                              DataCell(Text(performance.studentId ?? '-')),
-                              DataCell(Text(
-                                  '${performance.attendance?.present ?? '-'} / ${performance.attendance?.absent ?? '-'}')),
-                              DataCell(Text(
-                                  performance.totalSubjects?.toString() ??
-                                      '-')),
-                              DataCell(Text(
-                                  performance.totalScore?.toString() ?? '-')),
-                              DataCell(Text(performance.overallAverage
-                                      ?.toStringAsFixed(2) ??
-                                  '-')),
-                              DataCell(Text(
-                                  performance.overallPosition?.toString() ??
-                                      '-')),
-                              DataCell(Text(
-                                  performance.totalStudents?.toString() ??
-                                      '-')),
-                            ]);
-                          }).toList(),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
+      builder: (context) => PerformanceDialog(
+          classId: classId, sessionId: sessionId, termId: termId),
     );
   }
 
   Future<void> _showSkillsAndTraits(
       String classId, String sessionId, String termId) async {
     showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Traits and Skills Scores'),
-        content: SizedBox(
-          width: 800,
-          height: 600,
-          child: StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('classes')
-                .doc(classId)
-                .collection('sessions')
-                .doc(sessionId)
-                .collection('terms')
-                .doc(termId)
-                .collection('skillsAndTraits')
-                .snapshots(),
-            builder: (context, snapshot) {
-              if (!snapshot.hasData) {
-                debugPrint('No data available in snapshot.');
-                return const Center(child: CircularProgressIndicator());
-              }
-
-              final scores = snapshot.data!.docs.map((doc) {
-                final data = doc.data() as Map<String, dynamic>;
-                return TraitsAndSkills(
-                  regNo: doc.id,
-                  creativity: data['creativity'],
-                  sports: data['sports'],
-                  attentiveness: data['attentiveness'],
-                  obedience: data['obedience'],
-                  cleanliness: data['cleanliness'],
-                  politeness: data['politeness'],
-                  honesty: data['honesty'],
-                  punctuality: data['punctuality'],
-                  music: data['music'],
-                );
-              }).toList();
-
-              return Column(
-                children: [
-                  Row(
-                    children: [
-                      ElevatedButton.icon(
-                        onPressed: () {
-                          TraitsTemplate.generateTraitsTemplate();
-                        },
-                        icon: const Icon(Icons.download),
-                        label: const Text('Download Template'),
-                      ),
-                      const SizedBox(width: 16),
-                      ElevatedButton.icon(
-                        onPressed: () {
-                          _uploadSkillAndTraitsScores(
-                              classId, sessionId, termId);
-                        },
-                        icon: const Icon(Icons.upload_file),
-                        label: const Text('Upload Scores'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.vertical,
-                        child: DataTable(
-                          columns: const [
-                            DataColumn(label: Text('Reg No')),
-                            DataColumn(label: Text('Creativity')),
-                            DataColumn(label: Text('Sports')),
-                            DataColumn(label: Text('Attentiveness')),
-                            DataColumn(label: Text('Obedience')),
-                            DataColumn(label: Text('Cleanliness')),
-                            DataColumn(label: Text('Politeness')),
-                            DataColumn(label: Text('Honesty')),
-                            DataColumn(label: Text('Punctuality')),
-                            DataColumn(label: Text('Music')),
-                          ],
-                          rows: scores.map((score) {
-                            return DataRow(cells: [
-                              DataCell(Text(score.regNo)),
-                              DataCell(
-                                  Text(score.creativity?.toString() ?? '-')),
-                              DataCell(Text(score.sports?.toString() ?? '-')),
-                              DataCell(
-                                  Text(score.attentiveness?.toString() ?? '-')),
-                              DataCell(
-                                  Text(score.obedience?.toString() ?? '-')),
-                              DataCell(
-                                  Text(score.cleanliness?.toString() ?? '-')),
-                              DataCell(
-                                  Text(score.politeness?.toString() ?? '-')),
-                              DataCell(Text(score.honesty?.toString() ?? '-')),
-                              DataCell(
-                                  Text(score.punctuality?.toString() ?? '-')),
-                              DataCell(Text(score.music?.toString() ?? '-')),
-                            ]);
-                          }).toList(),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-            },
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
+        context: context,
+        builder: (context) => SkillsAndTraitsDialog(
+            classId: classId, sessionId: sessionId, termId: termId));
   }
 
   Future<void> _showSubjectScores(String classId, String sessionId,
@@ -652,31 +445,6 @@ class _ClassesScreenState extends State<ClassesScreen> {
         ],
       ),
     );
-  }
-
-  Future<void> _uploadSkillAndTraitsScores(
-      String classId, String sessionId, String termId) async {
-    final traits = await TraitsTemplate.uploadTraits();
-
-    if (TraitsTemplate.validateScores(traits)) {
-      await FirebaseService().uploadBatchSkillsAndTraits(
-        classId: classId,
-        sessionId: sessionId,
-        termId: termId,
-        traits: traits,
-      );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Scores uploaded successfully')),
-        );
-      }
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Invalid scores in template')),
-        );
-      }
-    }
   }
 
   Future<void> _uploadSubjectScores(

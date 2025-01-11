@@ -1,10 +1,12 @@
 import 'package:ads_schools/models/models.dart';
 import 'package:ads_schools/screens/classes_screen.dart';
-import 'package:ads_schools/screens/report.dart';
-import 'package:ads_schools/services/data_upload.dart';
 import 'package:ads_schools/services/firebase_service.dart';
-import 'package:ads_schools/services/subject_template.dart';
-import 'package:ads_schools/util/constants.dart';
+import 'package:ads_schools/util/functions.dart';
+import 'package:ads_schools/widgets/my_widgets.dart';
+import 'package:ads_schools/widgets/report_dialog.dart';
+import 'package:ads_schools/widgets/student_dialog.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -16,220 +18,131 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final _searchController = TextEditingController();
-  final _uploadService = DataUploadService();
-  final String _selectedClass = 'All Classes';
-  final String _selectedTerm = '1st Term';
-  final String _selectedSession = '2024/2025';
-  bool _isLoading = false;
+  bool isLoading = true; // Track loading state
+  List<SchoolClass> classes = [];
+  List<Student> allStudents = [];
+  List<Student> filteredStudents = [];
+  List<Session> sessions = [];
+  List<Term> terms = [];
+  String? _selectedClassForReport;
+  String? _selectedSessionForReport;
+  String? _selectedTerm;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  String? currentClassId;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       key: _scaffoldKey,
-      appBar: _buildAppBar(),
-      drawer: _buildDrawer(),
+      appBar: MyAppBar(isLoading: isLoading),
+      drawer: !kIsWeb ? _buildDrawer() : null,
       body: Row(
         children: [
-          Expanded(
-            flex: 5,
-            child: _buildMainContent(),
-          ),
           Expanded(
             flex: 2,
             child: _buildSidebar(),
           ),
+          Expanded(
+            flex: 6,
+            child: _buildDataTable(),
+          ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _addStudent(),
+        onPressed: () => _showStudentDialog(),
         label: const Text('Add Student'),
         icon: const Icon(Icons.add),
       ),
     );
   }
 
-  Future<void> _addStudent() async {
-    final formKey = GlobalKey<FormState>();
-    final nameController = TextEditingController();
-    final regNoController = TextEditingController();
-    String selectedClass = 'Primary 1';
-
-    final result = await showDialog<Map<String, String>>(
+  Future<dynamic> errorDialog(
+      {required String errorCode, required String message}) {
+    return showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add New Student'),
-        content: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          title: Row(
             children: [
-              TextFormField(
-                controller: nameController,
-                decoration: const InputDecoration(labelText: 'Student Name'),
-                validator: (value) =>
-                    value?.isEmpty ?? true ? 'Name is required' : null,
-              ),
-              TextFormField(
-                controller: regNoController,
-                decoration:
-                    const InputDecoration(labelText: 'Registration Number'),
-                validator: (value) => value?.isEmpty ?? true
-                    ? 'Registration Number is required'
-                    : null,
-              ),
-              DropdownButtonFormField<String>(
-                value: selectedClass,
-                decoration: const InputDecoration(labelText: 'Class'),
-                items: ['Primary 1', 'Primary 2', 'Primary 3']
-                    .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                    .toList(),
-                onChanged: (value) => selectedClass = value!,
-              ),
+              const Icon(Icons.error, color: Colors.red),
+              const SizedBox(width: 8),
+              Text('Error!'),
             ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              if (formKey.currentState?.validate() ?? false) {
-                Navigator.pop(context, {
-                  'name': nameController.text,
-                  'regNo': regNoController.text,
-                  'class': selectedClass,
-                });
-              }
-            },
-            child: const Text('Add'),
-          ),
-        ],
-      ),
-    );
-
-    if (result != null) {
-      try {
-        final student = Student(
-          regNo: result['regNo']!,
-          name: result['name']!,
-          currentClass: result['class']!,
-          personalInfo: {},
-        );
-
-        await FirebaseService.addDocument(
-          collection: 'students',
-          document: student,
-          toJsonOrMap: (s) => s.toMap(),
-        );
-
-        _showSnackBar('Student added successfully');
-      } catch (e) {
-        _showSnackBar('Error adding student: $e');
-      }
-    }
-  }
-
-  Future<void> _batchPrintReports() async {
-    setState(() => _isLoading = true);
-    try {
-      final students = await FirebaseService.getWhere(
-        collection: 'students',
-        queryFields: _selectedClass == 'All Classes'
-            ? {}
-            : {'currentClass': _selectedClass},
-      );
-
-      if (students.docs.isEmpty) {
-        _showSnackBar('No students found for printing reports');
-        return;
-      }
-
-      // Show progress dialog
-      await showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => AlertDialog(
-          title: const Text('Generating Reports'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
-            children: const [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text('Please wait while reports are being generated...'),
+            children: [
+              Text(
+                message,
+                style: const TextStyle(color: Colors.black54),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Error Code: $errorCode',
+                style: const TextStyle(fontSize: 12, color: Colors.red),
+              ),
             ],
           ),
-        ),
-      );
-
-      _showSnackBar('Reports generated successfully');
-    } catch (e) {
-      _showSnackBar('Error generating reports: $e');
-    } finally {
-      setState(() => _isLoading = false);
-      Navigator.of(context).pop(); // Close progress dialog
-    }
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
-  Widget _buildAnalyticsCard(String title, String value) {
-    return Card(
-      child: ListTile(
-        title: Text(title),
-        trailing: Text(
-          value,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
+  @override
+  void initState() {
+    super.initState();
+    _loadInitialData();
+    _searchController.addListener(() {
+      _filterStudents(_searchController.text);
+    });
+  }
+
+  Future<dynamic> loadingDialog(String? subtitle) {
+    return showDialog(
+      context: context,
+      barrierDismissible: false, // Prevent closing dialog by tapping outside
+      builder: (context) {
+        return AlertDialog(
+          //title: Text('$title ...'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(),
+              SizedBox(height: 20),
+              Text('Please wait while we $subtitle ...'),
+            ],
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      title: const Text('ADS_School'),
-      iconTheme: const IconThemeData(color: Colors.white),
-      backgroundColor: mainColor,
-      actions: [
-        if (_isLoading)
-          const Padding(
-            padding: EdgeInsets.all(16.0),
-            child: CircularProgressIndicator(color: Colors.white),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildClassDropdown() {
-    return DropdownButtonFormField<String>(
-      value: _selectedClass,
-      decoration: const InputDecoration(labelText: 'Class'),
-      items: ['All Classes', 'Primary 1', 'Primary 2', 'Primary 3']
-          .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-          .toList(),
-      onChanged: (value) => setState(() {}),
-    );
-  }
-
-  DataRow _buildDataRow(Student student) {
+  DataRow _buildDataRow(Student student, int index) {
     return DataRow(
       cells: [
+        DataCell(Text('$index')),
         DataCell(Text(student.regNo)),
         DataCell(Text(student.name)),
+        DataCell(Text(student.gender ?? 'N/A')),
         DataCell(Text(student.currentClass)),
+        DataCell(Text(student.dob.toString())),
         DataCell(Row(
-          mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
               icon: const Icon(Icons.edit, size: 20),
-              onPressed: () => _editStudent(student),
+              onPressed: () => _showStudentDialog(student: student),
             ),
             IconButton(
               icon: const Icon(Icons.assessment, size: 20),
-              onPressed: () => _viewReportCard(student),
+              onPressed: () => _viewReportCardDialog(student),
             ),
             IconButton(
               icon: const Icon(Icons.delete, size: 20, color: Colors.red),
@@ -242,43 +155,50 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildDataTable() {
-    return Expanded(
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
       child: Card(
         elevation: 4,
-        child: StreamBuilder<List<Student>>(
-          stream: FirebaseService.getDataStream<Student>(
-            collection: 'students',
-            fromMap: (data) => Student.fromMap(data),
-            queryFields: _selectedClass == 'All Classes'
-                ? null
-                : {'currentClass': _selectedClass},
-          ),
-          builder: (context, snapshot) {
-            if (snapshot.hasError) {
-              return Center(child: Text('Error: ${snapshot.error}'));
-            }
-            if (!snapshot.hasData) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
-            final students = snapshot.data!;
-            return SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: SingleChildScrollView(
-                child: DataTable(
-                  columns: const [
-                    DataColumn(label: Text('Reg No')),
-                    DataColumn(label: Text('Name')),
-                    DataColumn(label: Text('Class')),
-                    DataColumn(label: Text('Actions')),
-                  ],
-                  rows: students
-                      .map((student) => _buildDataRow(student))
-                      .toList(),
-                ),
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: _buildViewToggle(),
+                  ),
+                  const Spacer(),
+                  Expanded(
+                      flex: 2,
+                      child: MySearchBar(controller: _searchController)),
+                ],
               ),
-            );
-          },
+              const Divider(
+                thickness: 5.0,
+              ),
+              DataTable(
+                columns: const [
+                  DataColumn(label: Text('S/N')),
+                  DataColumn(label: Text('Reg No')),
+                  DataColumn(label: Text('Name')),
+                  DataColumn(label: Text('Gender')),
+                  DataColumn(label: Text('Class')),
+                  DataColumn(label: Text('DOB')),
+                  DataColumn(label: Text('Actions')),
+                ],
+                rows: filteredStudents
+                    .asMap()
+                    .entries
+                    .map((entry) => _buildDataRow(
+                          entry.value,
+                          entry.key + 1,
+                        ))
+                    .toList(),
+              )
+            ],
+          ),
         ),
       ),
     );
@@ -319,79 +239,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildFilters() {
-    return Card(
-      elevation: 4,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Expanded(child: _buildClassDropdown()),
-                const SizedBox(width: 8),
-                Expanded(child: _buildTermDropdown()),
-                const SizedBox(width: 8),
-                Expanded(child: _buildSessionDropdown()),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _buildSearchBar(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMainContent() {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _buildFilters(),
-          const SizedBox(height: 16),
-          _buildDataTable(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQuickAction({
-    required IconData icon,
-    required String title,
-    required VoidCallback onTap,
-  }) {
-    return ListTile(
-      leading: Icon(icon),
-      title: Text(title),
-      onTap: onTap,
-    );
-  }
-
-  Widget _buildSearchBar() {
-    return TextField(
-      controller: _searchController,
-      decoration: const InputDecoration(
-        prefixIcon: Icon(Icons.search),
-        hintText: 'Search students...',
-        border: OutlineInputBorder(),
-      ),
-      onChanged: (value) => setState(() {}),
-    );
-  }
-
-  Widget _buildSessionDropdown() {
-    return DropdownButtonFormField<String>(
-      value: _selectedSession,
-      decoration: const InputDecoration(labelText: 'Session'),
-      items: ['2024/2025', '2023/2024']
-          .map((s) => DropdownMenuItem(value: s, child: Text(s)))
-          .toList(),
-      onChanged: (value) => setState(() {}),
-    );
-  }
-
   Widget _buildSidebar() {
     return Card(
       margin: const EdgeInsets.all(16),
@@ -399,50 +246,73 @@ class _HomeScreenState extends State<HomeScreen> {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _buildQuickAction(
-            icon: Icons.add,
-            title: 'Add Student',
-            onTap: _addStudent,
-          ),
-          _buildQuickAction(
-            icon: Icons.upload_file,
-            title: 'Upload Data',
-            onTap: _uploadData,
-          ),
-          _buildQuickAction(
-            icon: Icons.download,
-            title: 'Download Template',
-            onTap: _downloadTemplate,
-          ),
-          _buildQuickAction(
-            icon: Icons.print,
-            title: 'Print Reports',
-            onTap: _batchPrintReports,
-          ),
+          QuickActionBtn(
+              icon: Icons.add,
+              title: 'Add Student',
+              onTap: () => _showStudentDialog()),
+          QuickActionBtn(
+              icon: Icons.download,
+              title: 'Classes',
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => const ClassesScreen()),
+                );
+              }),
+          QuickActionBtn(
+              icon: Icons.download,
+              title: 'Templates',
+              onTap: _downloadTemplate),
+          // QuickActionBtn(icon: Icons.print, title: 'Print Reports', onTap: _batchPrintReports),
           const Divider(),
-          _buildQuickAction(
-            icon: Icons.analytics,
-            title: 'Analytics',
-            onTap: _showAnalytics,
-          ),
-          _buildQuickAction(
-            icon: Icons.settings,
-            title: 'Settings',
-            onTap: _showSettings,
-          ),
+          QuickActionBtn(
+              icon: Icons.analytics, title: 'Analytics', onTap: _showAnalytics),
+          QuickActionBtn(
+              icon: Icons.settings, title: 'Settings', onTap: _showSettings),
         ],
       ),
     );
   }
 
-  Widget _buildTermDropdown() {
-    return DropdownButtonFormField<String>(
-      value: _selectedTerm,
-      decoration: const InputDecoration(labelText: 'Term'),
-      items: ['1st Term', '2nd Term', '3rd Term']
-          .map((t) => DropdownMenuItem(value: t, child: Text(t)))
-          .toList(),
-      onChanged: (value) => setState(() {}),
+  // Toggle between viewing all students or filtering by class
+  Widget _buildViewToggle() {
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Text('Filter by Class: '),
+          Expanded(
+            child: classes.isEmpty
+                ? const Text('Loading classes...')
+                : DropdownButtonFormField<String>(
+                    disabledHint: Text('Select Class to View Students'),
+                    items: [
+                      DropdownMenuItem(
+                          value: null, child: const Text('All Students')),
+                      ...classes.map((c) =>
+                          DropdownMenuItem(value: c.id, child: Text(c.name))),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        currentClassId = value; // Update currentClassId here
+                        filteredStudents = value == null
+                            ? List.from(allStudents)
+                            : allStudents
+                                .where(
+                                    (student) => student.currentClass == value)
+                                .toList();
+                      });
+                    },
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -476,227 +346,339 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _downloadTemplate() async {
+    //TODO: Implement this method
+    _showSnackBar('Template download feature coming soon');
+  }
+
+  // Filter students by search query
+  void _filterStudents(String query) {
+    final lowercaseQuery = query.toLowerCase();
+    setState(() {
+      filteredStudents = allStudents
+          .where((student) =>
+              student.name.toLowerCase().contains(lowercaseQuery) ||
+              student.regNo.toLowerCase().contains(lowercaseQuery) ||
+              student.currentClass.toLowerCase().contains(lowercaseQuery))
+          .toList();
+    });
+  }
+
+  // Fetch classes
+  Future<void> _loadClasses() async {
     try {
-      setState(() => _isLoading = true);
-
-      // Show options to the user
-      final selectedTemplate = await showDialog<String>(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: Text('Select Template'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ListTile(
-                  title: Text('Subject Template'),
-                  onTap: () => Navigator.of(context).pop('subject'),
-                ),
-                ListTile(
-                  title: Text('Traits and Skills Template'),
-                  onTap: () => Navigator.of(context).pop('traitsAndSkills'),
-                ),
-              ],
-            ),
-          );
-        },
-      );
-
-      // Proceed based on user selection
-      if (selectedTemplate == 'subject') {
-        final filePath = await SubjectTemplate.generateSubjectTemplate();
-        _showSnackBar('Subject template downloaded to: $filePath');
-      } else if (selectedTemplate == 'traitsAndSkills') {
-        final filePath = await TraitsTemplate.generateTraitsTemplate();
-        _showSnackBar('Traits and Skills template downloaded to: $filePath');
-      } else {
-        _showSnackBar('No template selected.');
-      }
+      final fetchedClasses = await FirebaseHelper.fetchClasses();
+      setState(() {
+        classes = fetchedClasses;
+      });
     } catch (e) {
-      _showSnackBar('Error downloading template: $e');
-      debugPrint('Error downloading template: $e');
-    } finally {
-      setState(() => _isLoading = false);
+      _showSnackBar('Error fetching classes: $e');
     }
   }
 
-  Future<void> _editStudent(Student student) async {
-    final formKey = GlobalKey<FormState>();
-    final nameController = TextEditingController(text: student.name);
-    final regNoController = TextEditingController(text: student.regNo);
-    String selectedClass = student.currentClass;
+  // Load initial data
+  Future<void> _loadInitialData() async {
+    setState(() {
+      isLoading = true; // Start loading
+    });
 
-    final result = await showDialog<Map<String, String>>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Edit Student'),
-        content: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                controller: nameController,
-                decoration: const InputDecoration(labelText: 'Student Name'),
-                validator: (value) =>
-                    value?.isEmpty ?? true ? 'Name is required' : null,
-              ),
-              TextFormField(
-                controller: regNoController,
-                decoration:
-                    const InputDecoration(labelText: 'Registration Number'),
-                enabled: false,
-              ),
-              DropdownButtonFormField<String>(
-                value: selectedClass,
-                decoration: const InputDecoration(labelText: 'Class'),
-                items: ['Primary 1', 'Primary 2', 'Primary 3']
-                    .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                    .toList(),
-                onChanged: (value) => selectedClass = value!,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              if (formKey.currentState?.validate() ?? false) {
-                Navigator.pop(context, {
-                  'name': nameController.text,
-                  'class': selectedClass,
-                });
-              }
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-
-    if (result != null) {
-      try {
-        final updatedStudent = Student(
-          studentId: student.studentId,
-          regNo: student.regNo,
-          name: result['name']!,
-          currentClass: result['class']!,
-          photoUrl: student.photoUrl,
-          personalInfo: student.personalInfo,
-        );
-
-        await FirebaseService.updateOrAddDocument(
-          collection: 'students',
-          document: updatedStudent,
-          queryFields: {'regNo': student.regNo},
-          toJsonOrMap: (s) => s.toMap(),
-        );
-
-        _showSnackBar('Student updated successfully');
-      } catch (e) {
-        _showSnackBar('Error updating student: $e');
-      }
+    try {
+      await Future.wait([
+        _loadClasses(),
+        _loadStudents(),
+      ]);
+    } catch (e) {
+      _showSnackBar('Error loading data: $e');
+    } finally {
+      setState(() {
+        isLoading = false; // Stop loading
+      });
     }
+  }
+
+  Future<void> _loadReportCard({required Student student}) async {
+    try {
+      // Show progress dialog with initial message
+      loadingDialog('prepare the report');
+      Navigator.pop(context);
+      loadingDialog("fetch the student's Information");
+      Navigator.pop(context);
+
+      loadingDialog('fetch class info');
+// Fetch class name
+      final classDoc = await FirebaseService.getDocumentById(
+          'classes', _selectedClassForReport!);
+      final schoolClass = SchoolClass.fromFirestore(classDoc);
+      final className = schoolClass.name;
+
+      student.currentClass = className;
+      Navigator.pop(context);
+      loadingDialog("calculate the subjects scores");
+
+      // Fetch subject scores
+      final subjectScores = await FirebaseHelper.fetchStudentScores(
+        classId: _selectedClassForReport!,
+        sessionId: _selectedSessionForReport!,
+        termId: _selectedTerm!,
+        regNo: student.regNo,
+      );
+      Navigator.pop(context);
+      loadingDialog('fetching traits and skills grades');
+      // Fetch traits and skills scores
+      final traitsAndSkillsDoc = await FirebaseService.getDocumentById(
+        'classes/$_selectedClassForReport/sessions/$_selectedSessionForReport/terms/$_selectedTerm/skillsAndTraits',
+        student.regNo,
+      );
+
+      final traitsAndSkills = TraitsAndSkills.fromFirestore(
+        traitsAndSkillsDoc.data() as Map<String, dynamic>,
+      );
+      Navigator.pop(context);
+      loadingDialog("calculate the student's overall performance");
+      // Fetch overall performance data
+      final performanceDoc = await FirebaseFirestore.instance
+          .collection('classes')
+          .doc(_selectedClassForReport)
+          .collection('sessions')
+          .doc(_selectedSessionForReport)
+          .collection('terms')
+          .doc(_selectedTerm)
+          .collection('studentPerformance')
+          .doc(student.regNo)
+          .get();
+
+      PerformanceData? performanceData;
+      if (performanceDoc.exists) {
+        performanceData = PerformanceData.fromMap(performanceDoc.data()!);
+      }
+      Navigator.pop(context);
+      loadingDialog('finish up');
+      // Organize data for report card screen
+      final reportCardData = {
+        'student': student,
+        'performanceData': performanceData,
+        'subjectScores': subjectScores,
+        'traitsAndSkills': traitsAndSkills,
+      };
+
+      // Close progress dialog once the data is fetched
+      Navigator.pop(context);
+
+      // open the report dialog and pass the fetched data
+
+      showDialog<bool>(
+        barrierDismissible: true,
+        context: context,
+        builder: (context) => ReportDialog(
+          reportCardData: reportCardData,
+        ),
+      );
+    } catch (error) {
+      // Close the last dialog in case of error
+      Navigator.pop(context);
+      errorDialog(message: 'Result not available', errorCode: 'str001');
+    }
+  }
+
+  // Fetch students
+  Future<void> _loadStudents() async {
+    try {
+      final fetchedStudents = await FirebaseHelper.fetchStudents();
+      setState(() {
+        allStudents = fetchedStudents;
+        filteredStudents = fetchedStudents;
+      });
+    } catch (e) {
+      _showSnackBar('Error fetching students: $e');
+    }
+  }
+
+  Future<String?> _selectClassDialog() async {
+    return showDialog<String>(
+      context: context,
+      builder: (context) {
+        String? selectedClassId;
+        return AlertDialog(
+          title: const Text('Select a Class'),
+          content: DropdownButtonFormField<String>(
+            items: classes
+                .map((c) => DropdownMenuItem(
+                      value: c.id,
+                      child: Text(c.name),
+                    ))
+                .toList(),
+            onChanged: (value) {
+              selectedClassId = value;
+            },
+            decoration: const InputDecoration(
+              labelText: 'Class',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, selectedClassId),
+              child: const Text('Select'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _showAnalytics() async {
-    await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Class Analytics'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildAnalyticsCard('Total Students', '120'),
-              _buildAnalyticsCard('Class Average', '72.5%'),
-              _buildAnalyticsCard('Highest Score', '98%'),
-              _buildAnalyticsCard('Lowest Score', '45%'),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
+    //TODO: Implement this method
+    _showSnackBar('Analytics feature coming soon');
   }
 
   Future<void> _showSettings() async {
-    await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Settings'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.school),
-              title: const Text('School Information'),
-              onTap: () => _showSnackBar('School Information settings'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.grade),
-              title: const Text('Grading System'),
-              onTap: () => _showSnackBar('Grading System settings'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.backup),
-              title: const Text('Backup & Restore'),
-              onTap: () => _showSnackBar('Backup & Restore settings'),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
+    //TODO: Implement this method
+    _showSnackBar('Settings feature coming soon');
   }
 
+// Show a snackbar with the provided message
   void _showSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
-// Helper Methods
-  Future<void> _uploadData() async {
+//show student dialog for either adding or editing students
+  void _showStudentDialog({Student? student}) async {
     try {
-      setState(() => _isLoading = true);
+      // If adding a new student
+      if (student == null) {
+        // Check if the current class is null (i.e., "All Students" is selected)
+        if (currentClassId == null) {
+          errorDialog(
+            errorCode: '404',
+            message: 'Please select a class before adding a student...',
+          );
+          return; // Exit the function if no class is selected
+        }
+      }
 
-      await _uploadService.uploadReportCardData();
-      _showSnackBar('Data uploaded successfully');
+      String? cId = student == null ? currentClassId : student.currentClass;
+
+      final success = await showDialog<bool>(
+        barrierDismissible: false,
+        context: context,
+        builder: (context) => StudentDialog(
+          student: student,
+          currentClassId: cId!,
+        ),
+      );
+
+      if (success == true) {
+        _showSnackBar(student != null
+            ? "${student.name}'s data updated successfully!"
+            : 'New student added successfully!');
+        // Reload students to reflect the changes
+        await _loadStudents();
+      }
     } catch (e) {
-      debugPrint('Error uploading data: $e');
-      _showSnackBar('Error uploading data: $e');
-    } finally {
-      setState(() => _isLoading = false);
+      errorDialog(errorCode: 'sstd001', message: 'showing student dialog');
+      throw Exception('error opening student dialog: $e');
     }
   }
 
-  void _viewReportCard(Student student) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ReportCardScreen1(
-          studentId: student.studentId!,
-          classId: student.currentClass,
-          sessionId: 'Kf5LOZaxaqlAoKzMSO9R',
-          termId: 'DHujiDF53AOGKiLMLfKh',
-        ),
-      ),
+  // Handle report card viewing
+  Future<void> _viewReportCardDialog(Student student) async {
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Select Class, Session, and Term'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                  child: DropdownButtonFormField<String>(
+                    value: _selectedClassForReport,
+                    items: classes
+                        .map((c) =>
+                            DropdownMenuItem(value: c.id, child: Text(c.name)))
+                        .toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedClassForReport = value;
+                      });
+                    },
+                    decoration: InputDecoration(labelText: 'Class'),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                  child: DropdownButtonFormField<String>(
+                    value: _selectedSessionForReport,
+                    items: [
+                      DropdownMenuItem(
+                          value: 'Kf5LOZaxaqlAoKzMSO9R',
+                          child: Text('2023/2024')),
+                      DropdownMenuItem(
+                          value: 'n2D091pQfbGTd6AsoC1E',
+                          child: Text('2024/2025')),
+                      DropdownMenuItem(value: '', child: Text('2025/2026')),
+                      DropdownMenuItem(value: '', child: Text('2026/2027')),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedSessionForReport = value;
+                      });
+                    },
+                    decoration: InputDecoration(labelText: 'Session'),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                  child: DropdownButtonFormField<String>(
+                    value: _selectedTerm,
+                    items: [
+                      DropdownMenuItem(
+                          value: 'DHujiDF53AOGKiLMLfKh', child: Text('First')),
+                      DropdownMenuItem(
+                          value: 'PYn6CJOPDHgsdUhBEpnU', child: Text('Second')),
+                      DropdownMenuItem(
+                          value: 'LS3aTdmRpHWQphg9Yhz1', child: Text('Third')),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedTerm = value;
+                      });
+                    },
+                    decoration: InputDecoration(labelText: 'Term'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                if (_selectedClassForReport != null &&
+                    _selectedSessionForReport != null &&
+                    _selectedTerm != null) {
+                  _loadReportCard(
+                    student: student,
+                  );
+                } else {
+                  _showSnackBar('Please select all fields');
+                }
+              },
+              child: const Text('View Report'),
+            ),
+          ],
+        );
+      },
     );
   }
 }

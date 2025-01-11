@@ -46,7 +46,28 @@ flutter:
   uses-material-design: true
   assets:
     - assets/
-
+  fonts:
+    - family: Bree_Serif
+      fonts:
+        - asset: fonts/Bree_Serif/BreeSerif-Regular.ttf
+    - family: akeila
+      fonts:
+        - asset: fonts/akeila/Akeila.otf
+    - family: aldyn-heart
+      fonts:
+        - asset: fonts/aldyn-heart/AldynHeart-R998A.otf
+    - family: rogbold
+      fonts:
+        - asset: fonts/rogbold/Rogbold-3llGM.otf
+    - family: roulleta
+      fonts:
+        - asset: fonts/roulleta/Rouletta.ttf
+    - family: six-fence
+      fonts:
+        - asset: fonts/six-fence/SIX-FENCE.otf
+    - family: lt-serif
+      fonts:
+        - asset: fonts/lt-serif/LT.SerifDemo.otf                                       
 flutter_icons:
   android: "launcher_icon"
   ios: true

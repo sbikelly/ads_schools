@@ -1,132 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-class AcademicRecord {
-  final String? subjectId;
-  final String subjectName;
-  final int ca1;
-  final int ca2;
-  final int exam;
-  final int total;
-  final String grade;
-  final String remark;
-  final int position;
-  final int classCount;
-  final double classAverage;
-
-  AcademicRecord({
-    this.subjectId,
-    required this.subjectName,
-    required this.ca1,
-    required this.ca2,
-    required this.exam,
-    required this.total,
-    required this.grade,
-    required this.remark,
-    required this.position,
-    required this.classCount,
-    required this.classAverage,
-  });
-
-  factory AcademicRecord.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-    return AcademicRecord(
-      subjectId: doc.id,
-      subjectName: data['subjectName'] ?? '',
-      ca1: data['ca1']?.toInt() ?? 0,
-      ca2: data['ca2']?.toInt() ?? 0,
-      exam: data['exam']?.toInt() ?? 0,
-      total: data['total']?.toInt() ?? 0,
-      grade: data['grade'] ?? '',
-      remark: data['remark'] ?? '',
-      position: data['position']?.toInt() ?? 0,
-      classCount: data['classCount']?.toInt() ?? 0,
-      classAverage: data['classAverage']?.toDouble() ?? 0.0,
-    );
-  }
-
-  factory AcademicRecord.fromMap(Map<String, dynamic> map) => AcademicRecord(
-        subjectId: map['id'],
-        subjectName: map['subjectName'] ?? '',
-        ca1: map['ca1']?.toInt() ?? 0,
-        ca2: map['ca2']?.toInt() ?? 0,
-        exam: map['exam']?.toInt() ?? 0,
-        total: map['total']?.toInt() ?? 0,
-        grade: map['grade'] ?? '',
-        remark: map['remark'] ?? '',
-        position: map['position']?.toInt() ?? 0,
-        classCount: map['classCount']?.toInt() ?? 0,
-        classAverage: map['classAverage']?.toDouble() ?? 0.0,
-      );
-
-  String getFormattedPosition() => '$position${getPositionSuffix()}';
-
-  String getPositionSuffix() {
-    if (position >= 11 && position <= 13) return 'th';
-    switch (position % 10) {
-      case 1:
-        return 'st';
-      case 2:
-        return 'nd';
-      case 3:
-        return 'rd';
-      default:
-        return 'th';
-    }
-  }
-
-  Map<String, dynamic> toMap() => {
-        'id': subjectId,
-        'subjectName': subjectName,
-        'ca1': ca1,
-        'ca2': ca2,
-        'exam': exam,
-        'total': total,
-        'grade': grade,
-        'remark': remark,
-        'position': position,
-        'classCount': classCount,
-        'classAverage': classAverage,
-      };
-}
-
-class Assessment {
-  final String? id;
-  final String type;
-  final String name;
-  final String rating;
-
-  Assessment({
-    this.id,
-    required this.type,
-    required this.name,
-    required this.rating,
-  });
-
-  factory Assessment.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-    return Assessment(
-      id: doc.id,
-      type: data['type'] ?? '',
-      name: data['name'] ?? '',
-      rating: data['rating'] ?? '',
-    );
-  }
-
-  factory Assessment.fromMap(Map<String, dynamic> map) => Assessment(
-        id: map['id'] ?? '',
-        type: map['type'] ?? '',
-        name: map['name'] ?? '',
-        rating: map['rating'] ?? '',
-      );
-
-  Map<String, dynamic> toMap() => {
-        'id': id,
-        'type': type,
-        'name': name,
-        'rating': rating,
-      };
-}
-
 class Attendance {
   int? present;
   int? absent;
@@ -222,77 +95,6 @@ class PerformanceData {
   }
 }
 
-class ReportCard {
-  final String studentId;
-  final String term;
-  final String session;
-  final Map<String, dynamic> attendance;
-  final List<SubjectScore> subjectScores;
-  final List<Assessment> skills;
-  final List<Assessment> traits;
-  final int overallPosition;
-  final int totalStudents;
-  final double overallAverage;
-
-  ReportCard({
-    required this.studentId,
-    required this.term,
-    required this.session,
-    required this.attendance,
-    required this.subjectScores,
-    required this.skills,
-    required this.traits,
-    required this.overallPosition,
-    required this.totalStudents,
-    required this.overallAverage,
-  });
-
-  factory ReportCard.fromMap(Map<String, dynamic> map) => ReportCard(
-        studentId: map['id'] ?? '',
-        overallPosition: map['overallPosition']?.toInt() ?? 0,
-        totalStudents: map['totalStudents']?.toInt() ?? 0,
-        overallAverage: map['overallAverage']?.toDouble() ?? 0.0,
-        term: map['term'] ?? '',
-        session: map['session'] ?? '',
-        attendance: map['attendance'] ?? {},
-        subjectScores: List<SubjectScore>.from(
-            (map['subjectScores'] ?? []).map((x) => SubjectScore.fromMap(x))),
-        skills: List<Assessment>.from(
-            (map['skills'] ?? []).map((x) => Assessment.fromMap(x))),
-        traits: List<Assessment>.from(
-            (map['traits'] ?? []).map((x) => Assessment.fromMap(x))),
-      );
-
-  String getOverallPositionFormatted() {
-    if (overallPosition >= 11 && overallPosition <= 13) {
-      return '${overallPosition}th';
-    }
-    switch (overallPosition % 10) {
-      case 1:
-        return '${overallPosition}st';
-      case 2:
-        return '${overallPosition}nd';
-      case 3:
-        return '${overallPosition}rd';
-      default:
-        return '${overallPosition}th';
-    }
-  }
-
-  Map<String, dynamic> toMap() => {
-        'studentId': studentId,
-        'overallPosition': overallPosition,
-        'totalStudents': totalStudents,
-        'overallAverage': overallAverage,
-        'term': term,
-        'session': session,
-        'attendance': attendance,
-        'academics': subjectScores.map((x) => x.toMap()).toList(),
-        'skills': skills.map((x) => x.toMap()).toList(),
-        'traits': traits.map((x) => x.toMap()).toList(),
-      };
-}
-
 class SchoolClass {
   final String id;
   final String name;
@@ -319,6 +121,11 @@ class SchoolClass {
       createdAt: (data['createdAt'] as Timestamp).toDate(),
     );
   }
+  factory SchoolClass.fromMap(Map<String, dynamic> map) => SchoolClass(
+        id: map['id'],
+        name: map['name'],
+        createdAt: map['createdAt'],
+      );
 
   Map<String, dynamic> toMap() => {
         'name': name,
@@ -332,10 +139,17 @@ class Session {
 
   Session({required this.id, required this.name});
 
-  factory Session.fromFirestore(String id, Map<String, dynamic> data) =>
-      Session(
-        id: id,
-        name: data['name'],
+  factory Session.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return Session(
+      id: doc.id,
+      name: data['name'],
+    );
+  }
+
+  factory Session.fromMap(Map<String, dynamic> map) => Session(
+        id: map['id'],
+        name: map['name'],
       );
 
   Map<String, dynamic> toMap() => {
@@ -348,16 +162,30 @@ class Student {
   final String regNo;
   final String name;
   String currentClass;
-  final String? photoUrl;
-  final Map<String, dynamic> personalInfo;
+  String? photo;
+  Map<String, dynamic> personalInfo;
+  String? gender;
+  DateTime? dob;
+  String? parentName;
+  String? parentPhone;
+  String? address;
+  String? bloodGroup;
+  DateTime? dateJoined;
 
   Student({
     this.studentId,
     required this.regNo,
     required this.name,
     required this.currentClass,
-    this.photoUrl,
+    this.photo,
     required this.personalInfo,
+    this.gender,
+    this.dob,
+    this.parentName,
+    this.parentPhone,
+    this.address,
+    this.bloodGroup,
+    this.dateJoined,
   });
 
   factory Student.fromFirestore(DocumentSnapshot doc) {
@@ -367,10 +195,19 @@ class Student {
       regNo: data['regNo'] ?? '', // Default to an empty string if null
       name: data['name'] ?? '',
       currentClass: data['currentClass'] ?? '',
-      photoUrl: data['photoUrl'] ?? 'assets/profile.jpg',
+      photo: data['photo'] ?? 'assets/profile.jpg',
       personalInfo: data['personalInfo'] != null
           ? Map<String, dynamic>.from(data['personalInfo'] as Map)
           : {},
+      gender: data['gender'] ?? '',
+      dob: data['dob'] != null ? (data['dob'] as Timestamp).toDate() : null,
+      parentName: data['parentName'] ?? '',
+      parentPhone: data['parentPhone'] ?? '',
+      address: data['address'] ?? '',
+      bloodGroup: data['bloodGroup'] ?? '',
+      dateJoined: data['dateJoined'] != null
+          ? (data['dateJoined'] as Timestamp).toDate()
+          : null,
     );
   }
 
@@ -379,8 +216,17 @@ class Student {
         regNo: map['regNo'] ?? '',
         name: map['name'] ?? '',
         currentClass: map['currentClass'] ?? '',
-        photoUrl: map['photoUrl'],
+        photo: map['photo'],
         personalInfo: map['personalInfo'] ?? {},
+        gender: map['gender'] ?? '',
+        dob: map['dob'] != null ? (map['dob'] as Timestamp).toDate() : null,
+        parentName: map['parentName'] ?? '',
+        parentPhone: map['parentPhone'] ?? '',
+        address: map['address'] ?? '',
+        bloodGroup: map['bloodGroup'] ?? '',
+        dateJoined: map['dateJoined'] != null
+            ? (map['dateJoined'] as Timestamp).toDate()
+            : null,
       );
 
   Map<String, dynamic> toMap() => {
@@ -388,8 +234,15 @@ class Student {
         'regNo': regNo,
         'name': name,
         'currentClass': currentClass,
-        'photoUrl': photoUrl,
+        'photoUrl': photo,
         'personalInfo': personalInfo,
+        'gender': gender,
+        'dob': Timestamp.fromDate(dob ?? DateTime.now()),
+        'parentName': parentName,
+        'parentPhone': parentPhone,
+        'address': address,
+        'bloodGroup': bloodGroup,
+        'dateJoined': Timestamp.fromDate(dateJoined ?? DateTime.now()),
       };
 }
 
@@ -478,11 +331,17 @@ class Term {
 
   Term({required this.id, required this.name});
 
-  factory Term.fromFirestore(String id, Map<String, dynamic> data) => Term(
-        id: id,
-        name: data['name'],
+  factory Term.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return Term(
+      id: doc.id,
+      name: data['name'],
+    );
+  }
+  factory Term.fromMap(Map<String, dynamic> map) => Term(
+        id: map['id'],
+        name: map['name'],
       );
-
   Map<String, dynamic> toMap() => {
         'name': name,
       };
