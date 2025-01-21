@@ -4,6 +4,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 class PDFService {
+  
   static Future<Uint8List> generateReportCard(
       PdfPageFormat pageFormat, reportCardData) async {
     final pdf = pw.Document();

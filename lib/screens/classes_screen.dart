@@ -1,4 +1,7 @@
+import 'package:ads_schools/helpers/firebase_helper.dart';
+import 'package:ads_schools/screens/attendance/attendance_dash.dart';
 import 'package:ads_schools/services/template_service.dart';
+import 'package:ads_schools/widgets/my_widgets.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
@@ -16,12 +19,18 @@ class ClassesScreen extends StatefulWidget {
 class _ClassesScreenState extends State<ClassesScreen> {
   String? _selectedClassId;
 
+  List<Student> allStudents = [];
+
+  bool isLoading = true;
+
+  DateTime? _startDate;
+
+  DateTime? _endDate;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Classes Management'),
-      ),
+      appBar: MyAppBar(isLoading: isLoading),
       body: Row(
         children: [
           // Classes List Panel
@@ -45,6 +54,12 @@ class _ClassesScreenState extends State<ClassesScreen> {
     );
   }
 
+  @override
+  void initState() {
+    _loadStudents();
+    super.initState();
+  }
+
   Widget _buildClassDetails(String classId) {
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance
@@ -57,7 +72,8 @@ class _ClassesScreenState extends State<ClassesScreen> {
         }
 
         if (!snapshot.hasData || snapshot.data?.data() == null) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(
+              child: Text('No details available for this class.'));
         }
 
         final classData = SchoolClass.fromFirestore(snapshot.data!);
@@ -98,12 +114,21 @@ class _ClassesScreenState extends State<ClassesScreen> {
           return Center(child: Text('Error: ${snapshot.error}'));
         }
 
-        if (!snapshot.hasData || snapshot.data?.docs.isEmpty == true) {
+        if (!snapshot.hasData) {
+          // Display a loading spinner while data is being fetched.
           return const Center(child: CircularProgressIndicator());
         }
 
         final classes = snapshot.data!.docs;
 
+        if (classes.isEmpty) {
+          // Display "No Class Available" if no classes exist.
+          return const Center(
+            child: Text('No Class Available'),
+          );
+        }
+
+        // If there are classes, display the list.
         return ListView.builder(
           padding: const EdgeInsets.all(8),
           itemCount: classes.length,
@@ -122,9 +147,19 @@ class _ClassesScreenState extends State<ClassesScreen> {
                 selected: _selectedClassId == classData.id,
                 onTap: () => setState(() => _selectedClassId = classData.id),
                 trailing: IconButton(
+                    icon: const Icon(Icons.markunread_mailbox),
+                    onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => AttendanceScreen(
+                                  classId: classData.id,
+                                  startDate: '2025-01-20 00:00:00.000',
+                                  endDate: '2025-01-20 00:00:00.000')),
+                        )),
+                /*IconButton(
                   icon: const Icon(Icons.delete),
                   onPressed: () => _confirmDeleteClass(classData),
-                ),
+                ),*/
               ),
             );
           },
@@ -148,8 +183,15 @@ class _ClassesScreenState extends State<ClassesScreen> {
         if (!snapshot.hasData || snapshot.data?.docs.isEmpty == true) {
           return const Center(child: CircularProgressIndicator());
         }
+        if (isLoading == true) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
         final sessions = snapshot.data!.docs;
+        if (sessions.isEmpty) {
+          return const Center(
+              child: Text('No subjects available for this term.'));
+        }
 
         return ListView.builder(
           padding: const EdgeInsets.all(8),
@@ -160,6 +202,16 @@ class _ClassesScreenState extends State<ClassesScreen> {
 
             return ExpansionTile(
               title: Text(session.name),
+              trailing: IconButton(
+                  icon: const Icon(Icons.markunread_mailbox),
+                  onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => AttendanceScreen(
+                                classId: classId,
+                                startDate: '2025-01-20 00:00:00.000',
+                                endDate: '2025-01-20 00:00:00.000')),
+                      )),
               children: [_buildTerms(classId, sessionDoc.id)],
             );
           },
@@ -180,14 +232,23 @@ class _ClassesScreenState extends State<ClassesScreen> {
           .collection('subjects')
           .snapshots(),
       builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Center(child: Text('Error: ${snapshot.error}'));
+        }
         if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.data!.docs.isEmpty) {
+          return const Center(
+              child: Text('No subjects available for this term.'));
+        }
+        if (isLoading == true) {
           return const Center(child: CircularProgressIndicator());
         }
 
         return Column(
           children: snapshot.data!.docs.map((subjectDoc) {
-            final subject = Subject.fromFirestore(
-                subjectDoc.data() as Map<String, dynamic>);
+            final subject = Subject.fromFirestore(subjectDoc);
             return ListTile(
               leading: const Icon(Icons.subject),
               title: Text(subject.name),
@@ -217,14 +278,25 @@ class _ClassesScreenState extends State<ClassesScreen> {
           .collection('terms')
           .snapshots(),
       builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Center(child: Text('Error: ${snapshot.error}'));
+        }
+
         if (!snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
+        }
+
+        final terms = snapshot.data!.docs;
+
+        if (terms.isEmpty) {
+          return const Center(
+              child: Text('No terms available for this session.'));
         }
 
         return ListView(
           shrinkWrap:
               true, // Ensures the ListView takes up only the required space
-          children: snapshot.data!.docs.map((termDoc) {
+          children: terms.map((termDoc) {
             final term = Term.fromFirestore(termDoc);
 
             return Padding(
@@ -262,7 +334,7 @@ class _ClassesScreenState extends State<ClassesScreen> {
     );
   }
 
-//TODO: Implement a progress indicator for all the upload processes
+  //TODO: Implement a progress indicator for all the upload processes
 
   Future<void> _confirmDeleteClass(SchoolClass classData) async {
     final confirm = await showDialog<bool>(
@@ -296,20 +368,63 @@ class _ClassesScreenState extends State<ClassesScreen> {
     );
   }
 
-// Helper Methods
+  // Helper Methods
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year}';
+  }
+
+  // Fetch students
+  Future<void> _loadStudents() async {
+    try {
+      setState(() {
+        isLoading = true; // Start loading
+      });
+      final fetchedStudents = await FirebaseHelper.fetchStudents();
+      setState(() {
+        allStudents = fetchedStudents;
+      });
+    } catch (e) {
+      _showSnackBar('Error fetching students: $e');
+    } finally {
+      setState(() {
+        isLoading = false; // Stop loading
+      });
+    }
   }
 
   void _newSubject({classId, sessionId, termId}) {
     showDialog(
       context: context,
-      builder: (context) => CreateSubjectDialog(
+      builder: (context) => AddSubjectsToClassDialog(
         classId: classId,
         sessionId: sessionId,
         termId: termId,
       ),
     );
+  }
+
+  Future<void> _selectDateRange(BuildContext context,
+      {required String classId}) async {
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now(),
+    );
+
+    if (picked != null) {
+      setState(() {
+        _startDate = picked.start;
+        _endDate = picked.end;
+      });
+
+      print(_startDate);
+      print(_endDate);
+      Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (context) => AttendanceScreen(
+                  classId: classId, startDate: _startDate, endDate: _endDate)));
+    }
   }
 
   Future<void> _showCreateClassDialog(BuildContext context) async {
@@ -330,10 +445,23 @@ class _ClassesScreenState extends State<ClassesScreen> {
 
   Future<void> _showSkillsAndTraits(
       String classId, String sessionId, String termId) async {
+    final students = allStudents
+        .where((student) => student.currentClass == classId)
+        .toList();
+
     showDialog(
         context: context,
         builder: (context) => SkillsAndTraitsDialog(
-            classId: classId, sessionId: sessionId, termId: termId));
+            classId: classId,
+            sessionId: sessionId,
+            termId: termId,
+            students: students));
+  }
+
+  // Show a snackbar with the provided message
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _showSubjectScores(String classId, String sessionId,
@@ -361,6 +489,12 @@ class _ClassesScreenState extends State<ClassesScreen> {
               if (!snapshot.hasData) {
                 return const Center(child: CircularProgressIndicator());
               }
+              if (isLoading == true) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              final students = allStudents
+                  .where((student) => student.currentClass == classId)
+                  .toList();
 
               final scores = snapshot.data!.docs
                   .map((doc) => SubjectScore(
@@ -384,7 +518,8 @@ class _ClassesScreenState extends State<ClassesScreen> {
                     children: [
                       ElevatedButton.icon(
                         onPressed: () =>
-                            SubjectTemplate.generateSubjectTemplate(),
+                            SubjectTemplate.generateSubjectTemplate(
+                                students: students),
                         icon: const Icon(Icons.download),
                         label: const Text('Download Template'),
                       ),

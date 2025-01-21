@@ -8,30 +8,214 @@ import 'package:universal_html/html.dart' as html;
 
 import '../models/models.dart';
 
+class StudentTemplate {
+  static Future<String> generateStudentTemplate() async {
+    try {
+      // Create a new Excel document
+      final Workbook workbook = Workbook();
+      final Worksheet sheet = workbook.worksheets[0];
+
+      // Set headers
+      sheet.getRangeByIndex(1, 1).setText('Reg. Number');
+      sheet.getRangeByIndex(1, 2).setText('Name');
+      sheet.getRangeByIndex(1, 3).setText('Current Class');
+      sheet.getRangeByIndex(1, 4).setText('Photo URL');
+      sheet.getRangeByIndex(1, 5).setText('Gender');
+      sheet.getRangeByIndex(1, 6).setText('Date of Birth (YYYY-MM-DD)');
+      sheet.getRangeByIndex(1, 7).setText('Parent Name');
+      sheet.getRangeByIndex(1, 8).setText('Parent Phone');
+      sheet.getRangeByIndex(1, 9).setText('Address');
+      sheet.getRangeByIndex(1, 10).setText('Blood Group');
+      sheet.getRangeByIndex(1, 11).setText('Date Joined (YYYY-MM-DD)');
+      sheet.getRangeByIndex(1, 12).setText('Person Info Key 1');
+      sheet.getRangeByIndex(1, 13).setText('Person Info Value 1');
+      sheet.getRangeByIndex(1, 14).setText('Person Info Key 2');
+      sheet.getRangeByIndex(1, 15).setText('Person Info Value 2');
+
+      // Add example row
+      sheet.getRangeByIndex(2, 1).setText('ST12345'); // Example Reg. Number
+      sheet.getRangeByIndex(2, 2).setText('John Doe'); // Example Name
+      sheet.getRangeByIndex(2, 3).setText('Class 5'); // Example Current Class
+      sheet
+          .getRangeByIndex(2, 4)
+          .setText('assets/photo.jpg'); // Example Photo URL
+      sheet.getRangeByIndex(2, 5).setText('Male'); // Example Gender
+      sheet.getRangeByIndex(2, 6).setText('2010-05-12'); // Example DOB
+      sheet.getRangeByIndex(2, 7).setText('Jane Doe'); // Example Parent Name
+      sheet
+          .getRangeByIndex(2, 8)
+          .setText('+2347012345678'); // Example Parent Phone
+      sheet
+          .getRangeByIndex(2, 9)
+          .setText('123 Example Street'); // Example Address
+      sheet.getRangeByIndex(2, 10).setText('O+'); // Example Blood Group
+      sheet.getRangeByIndex(2, 11).setText('2022-09-01'); // Example Date Joined
+      sheet.getRangeByIndex(2, 12).setText('Height'); // Example Person Info Key
+      sheet
+          .getRangeByIndex(2, 13)
+          .setText('160 cm'); // Example Person Info Value
+      sheet.getRangeByIndex(2, 14).setText('Weight'); // Example Person Info Key
+      sheet
+          .getRangeByIndex(2, 15)
+          .setText('50 kg'); // Example Person Info Value
+
+      // Auto-fit columns
+      for (int col = 1; col <= 15; col++) {
+        sheet.autoFitColumn(col);
+      }
+
+      // Save the document
+      final List<int> bytes = workbook.saveAsStream();
+      workbook.dispose();
+
+      if (kIsWeb) {
+        // Download for web platform
+        final blob = html.Blob([bytes]);
+        final url = html.Url.createObjectUrlFromBlob(blob);
+        final anchor = html.AnchorElement(href: url)
+          ..setAttribute('download', 'student_upload_template.xlsx')
+          ..click();
+        html.Url.revokeObjectUrl(url);
+        return anchor.toString();
+      } else {
+        // Save file for other platforms
+        final String? path = await FilePicker.platform.getDirectoryPath();
+        if (path != null) {
+          final File file = File('$path/student_upload_template.xlsx');
+          await file.writeAsBytes(bytes);
+          debugPrint('Template saved at: ${file.path}');
+        }
+        return path ?? '';
+      }
+    } catch (e) {
+      debugPrint('Error generating template: $e');
+      throw Exception('Failed to generate template: $e');
+    }
+  }
+
+  static Future<List<Student>> parseStudentExcelFile() async {
+    try {
+      // Pick file with validation
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['xlsx', 'xls'],
+        withData: true, // Ensure we get the file data for web
+      );
+
+      if (result == null || result.files.isEmpty) {
+        throw Exception('No file selected');
+      }
+
+      // Get file bytes
+      final bytes = kIsWeb
+          ? result.files.first.bytes!
+          : await File(result.files.single.path!).readAsBytes();
+
+      final excel = Excel.decodeBytes(bytes);
+      var students = <Student>[];
+
+      // Validate if Excel file has any sheets
+      if (excel.tables.isEmpty) {
+        throw Exception('Excel file has no sheets');
+      }
+
+      final sheet = excel.tables[excel.tables.keys.first]!;
+
+      // Validate minimum required columns
+      if (sheet.maxColumns < 3) {
+        throw Exception('Invalid template format - missing required columns');
+      }
+
+      // Process rows
+      for (var row = 1; row < sheet.maxRows; row++) {
+        var rowData = sheet.row(row);
+
+        // Skip empty rows
+        if (rowData.isEmpty || rowData[0]?.value == null) continue;
+
+        try {
+          final regNo = rowData[0]?.value.toString().trim() ?? '';
+          final name = rowData[1]?.value.toString().trim() ?? '';
+          final currentClass = rowData[2]?.value.toString().trim() ?? '';
+          final photo = rowData[3]?.value.toString();
+          final gender = rowData[4]?.value.toString();
+          final dob = rowData[5]?.value != null
+              ? DateTime.tryParse(rowData[5]!.value.toString())
+              : null;
+          final parentName = rowData[6]?.value.toString();
+          final parentPhone = rowData[7]?.value.toString();
+          final address = rowData[8]?.value.toString();
+          final bloodGroup = rowData[9]?.value.toString();
+          final dateJoined = rowData[10]?.value != null
+              ? DateTime.tryParse(rowData[10]!.value.toString())
+              : null;
+
+          // Parse dynamic personal info
+          final personInfo = <String, dynamic>{};
+          for (var i = 11; i < sheet.maxColumns; i += 2) {
+            final key = rowData[i]?.value.toString();
+            final value = rowData[i + 1]?.value.toString();
+            if (key != null && value != null) {
+              personInfo[key] = value;
+            }
+          }
+
+          students.add(Student(
+            regNo: regNo,
+            name: name,
+            currentClass: currentClass,
+            photo: photo,
+            gender: gender,
+            dob: dob,
+            parentName: parentName,
+            parentPhone: parentPhone,
+            address: address,
+            bloodGroup: bloodGroup,
+            dateJoined: dateJoined,
+            personInfo: personInfo,
+          ));
+        } catch (e) {
+          debugPrint('Warning: Error parsing row $row: $e');
+        }
+      }
+
+      if (students.isEmpty) {
+        throw Exception('No valid student data found in the file');
+      }
+
+      debugPrint('Successfully parsed ${students.length} students from Excel');
+      return students;
+    } catch (e) {
+      debugPrint('Error parsing Excel file: $e');
+      throw Exception('Failed to parse Excel file: $e');
+    }
+  }
+}
+
 class SubjectTemplate {
-  static Future<String> generateSubjectTemplate() async {
+  static Future<String> generateSubjectTemplate(
+      {required List<Student> students}) async {
     try {
       // Create a new Excel Document
       final Workbook workbook = Workbook();
       final Worksheet sheet = workbook.worksheets[0];
 
       // Set headers
-      sheet.getRangeByIndex(1, 1).setText('Registration Number');
-      sheet.getRangeByIndex(1, 2).setText('CA1 (20)');
-      sheet.getRangeByIndex(1, 3).setText('CA2 (20)');
-      sheet.getRangeByIndex(1, 4).setText('Exam (60)');
+      sheet.getRangeByIndex(1, 1).setText('Reg. Number');
+      sheet.getRangeByIndex(1, 2).setText('Name');
+      sheet.getRangeByIndex(1, 3).setText('CA1 (20)');
+      sheet.getRangeByIndex(1, 4).setText('CA2 (20)');
+      sheet.getRangeByIndex(1, 5).setText('Exam (60)');
 
-      // Add sample data
-      final sampleData = [
-        ['STD001', '15', '18', '45'],
-        ['STD002', '17', '16', '50'],
-        ['STD003', '14', '19', '48'],
-      ];
+      // Add students
+      final studentsData = students
+          .map((stud) => [stud.regNo, stud.name, '0', '0', '0'])
+          .toList();
 
-      // Insert sample data
-      for (var i = 0; i < sampleData.length; i++) {
-        for (var j = 0; j < sampleData[i].length; j++) {
-          sheet.getRangeByIndex(i + 2, j + 1).setText(sampleData[i][j]);
+      // Insert students
+      for (var i = 0; i < studentsData.length; i++) {
+        for (var j = 0; j < studentsData[i].length; j++) {
+          sheet.getRangeByIndex(i + 2, j + 1).setText(studentsData[i][j]);
         }
       }
 
@@ -40,6 +224,7 @@ class SubjectTemplate {
       sheet.autoFitColumn(2);
       sheet.autoFitColumn(3);
       sheet.autoFitColumn(4);
+      sheet.autoFitColumn(5);
 
       // Save the document
       final List<int> bytes = workbook.saveAsStream();
@@ -99,7 +284,7 @@ class SubjectTemplate {
       final sheet = excel.tables[excel.tables.keys.first]!;
 
       // Validate minimum required columns
-      if (sheet.maxColumns < 4) {
+      if (sheet.maxColumns < 5) {
         throw Exception('Invalid template format - missing required columns');
       }
 
@@ -113,9 +298,10 @@ class SubjectTemplate {
         try {
           // Validate and parse scores
           final regNo = rowData[0]?.value.toString().trim() ?? '';
-          final ca1 = _parseScore(rowData[1]?.value, 20);
-          final ca2 = _parseScore(rowData[2]?.value, 20);
-          final exam = _parseScore(rowData[3]?.value, 60);
+          //skip the name column as it is not needed
+          final ca1 = _parseScore(rowData[2]?.value, 20);
+          final ca2 = _parseScore(rowData[3]?.value, 20);
+          final exam = _parseScore(rowData[4]?.value, 60);
 
           if (regNo.isNotEmpty) {
             scores.add(SubjectScore(
@@ -171,30 +357,42 @@ class SubjectTemplate {
 }
 
 class TraitsTemplate {
-  static Future<String> generateTraitsTemplate() async {
+  static Future<String> generateTraitsTemplate(
+      {required List<Student> students}) async {
     try {
       // Create a new Excel Document
       final Workbook workbook = Workbook();
       final Worksheet sheet = workbook.worksheets[0];
 
       // Set headers
-      sheet.getRangeByIndex(1, 1).setText('Registration Number');
-      sheet.getRangeByIndex(1, 2).setText('Creativity (5)');
-      sheet.getRangeByIndex(1, 3).setText('Sports (5)');
-      sheet.getRangeByIndex(1, 4).setText('Attentivenes (5)');
-      sheet.getRangeByIndex(1, 5).setText('Obedience (5)');
-      sheet.getRangeByIndex(1, 6).setText('Cleanines (5)');
-      sheet.getRangeByIndex(1, 7).setText('Politeness (5)');
-      sheet.getRangeByIndex(1, 8).setText('Honesty (5)');
-      sheet.getRangeByIndex(1, 9).setText('Punctuality (5)');
-      sheet.getRangeByIndex(1, 10).setText('Music (5)');
+      sheet.getRangeByIndex(1, 1).setText('Reg. Number');
+      sheet.getRangeByIndex(1, 2).setText('name');
+      sheet.getRangeByIndex(1, 3).setText('Creativity (5)');
+      sheet.getRangeByIndex(1, 4).setText('Sports (5)');
+      sheet.getRangeByIndex(1, 5).setText('Attentivenes (5)');
+      sheet.getRangeByIndex(1, 6).setText('Obedience (5)');
+      sheet.getRangeByIndex(1, 7).setText('Cleanines (5)');
+      sheet.getRangeByIndex(1, 8).setText('Politeness (5)');
+      sheet.getRangeByIndex(1, 9).setText('Honesty (5)');
+      sheet.getRangeByIndex(1, 10).setText('Punctuality (5)');
+      sheet.getRangeByIndex(1, 11).setText('Music (5)');
 
       // Add sample data
-      final sampleData = [
-        ['STD001', '4', '3', '4', '4', '3', '4', '5', '4', '3'],
-        ['STD002', '5', '4', '5', '4', '5', '4', '5', '5', '4'],
-        ['STD003', '3', '2', '3', '3', '2', '3', '4', '3', '2'],
-      ];
+      final sampleData = students
+          .map((stud) => [
+                stud.regNo,
+                stud.name,
+                '0',
+                '0',
+                '0',
+                '0',
+                '0',
+                '0',
+                '0',
+                '0',
+                '0'
+              ])
+          .toList();
 
       // Insert sample data
       for (var i = 0; i < sampleData.length; i++) {
@@ -214,6 +412,7 @@ class TraitsTemplate {
       sheet.autoFitColumn(8);
       sheet.autoFitColumn(9);
       sheet.autoFitColumn(10);
+      sheet.autoFitColumn(11);
 
       // Save the document
       final List<int> bytes = workbook.saveAsStream();
@@ -282,15 +481,16 @@ class TraitsTemplate {
         try {
           // Validate and parse scores
           final regNo = rowData[0]?.value.toString().trim() ?? '';
-          final creativity = _parseScore(rowData[1]?.value, 5);
-          final sports = _parseScore(rowData[2]?.value, 5);
-          final attentiveness = _parseScore(rowData[3]?.value, 5);
-          final obedience = _parseScore(rowData[4]?.value, 5);
-          final cleanliness = _parseScore(rowData[5]?.value, 5);
-          final politeness = _parseScore(rowData[6]?.value, 5);
-          final honesty = _parseScore(rowData[7]?.value, 5);
-          final punctuality = _parseScore(rowData[8]?.value, 5);
-          final music = _parseScore(rowData[9]?.value, 5);
+          //skip student's name
+          final creativity = _parseScore(rowData[2]?.value, 5);
+          final sports = _parseScore(rowData[3]?.value, 5);
+          final attentiveness = _parseScore(rowData[4]?.value, 5);
+          final obedience = _parseScore(rowData[5]?.value, 5);
+          final cleanliness = _parseScore(rowData[6]?.value, 5);
+          final politeness = _parseScore(rowData[7]?.value, 5);
+          final honesty = _parseScore(rowData[8]?.value, 5);
+          final punctuality = _parseScore(rowData[9]?.value, 5);
+          final music = _parseScore(rowData[10]?.value, 5);
 
           if (regNo.isNotEmpty) {
             traits.add(TraitsAndSkills(

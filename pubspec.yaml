@@ -9,6 +9,8 @@ environment:
 
 
 dependencies:
+  flutter_dotenv: ^5.0.2
+  camera: ^0.11.0+2
   cloud_firestore: ^5.6.0
   data_table_2: ^2.5.18
   dynamic_multi_step_form: ^1.1.5
@@ -16,18 +18,26 @@ dependencies:
   file_picker: ^8.1.6
   firebase_auth: ^5.3.4
   firebase_core: ^3.9.0
+  firebase_storage: ^12.4.0
   flutter:
     sdk: flutter
   flutter_stepindicator: ^0.1.7
   intl: ^0.19.0
   open_file: ^3.2.1
   path_provider: ^2.0.12
-  pdf:
-  printing:
+  pdf: ^3.10.0
+  printing: ^5.11.0
+  #pdf:
+  #printing:
+  qr_code_tools: ^0.1.0
+  qr_flutter: ^4.1.0
   syncfusion_flutter_xlsio: ^25.1.42
   universal_html: ^2.2.4
   url_launcher: ^6.1.8
   vector_math: ^2.1.4
+  qr_code_scanner: ^1.0.1
+  provider: ^6.1.2
+  fl_chart: ^0.70.2
 
 dev_dependencies:
   flutter_launcher_icons: ^0.14.0
@@ -36,16 +46,18 @@ dev_dependencies:
     sdk: flutter
   test:
 
-dependency_overrides:
-  pdf:
-    path: ../pdf
-  printing:
-    path: ../printing
+#dependency_overrides:
+ # pdf:
+  #  path: ../pdf
+  #printing:
+   # path: ../printing
 
 flutter:
   uses-material-design: true
   assets:
+    - assets/images/
     - assets/
+
   fonts:
     - family: Bree_Serif
       fonts:

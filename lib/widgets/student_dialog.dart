@@ -251,7 +251,7 @@ class _StudentDialogState extends State<StudentDialog> {
         parentPhone: _parentPhoneController.text,
         address: _addressController.text,
         bloodGroup: _bloodGroup,
-        personalInfo: widget.student?.personalInfo ?? {},
+        personInfo: widget.student?.personInfo ?? {},
         photo: _photo);
 
     try {

@@ -1,8 +1,8 @@
+import 'package:ads_schools/helpers/constants.dart';
 import 'package:ads_schools/models/models.dart';
 import 'package:ads_schools/screens/classes_screen.dart';
 import 'package:ads_schools/services/firebase_service.dart';
 import 'package:ads_schools/services/template_service.dart';
-import 'package:ads_schools/util/constants.dart';
 import 'package:flutter/material.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -113,7 +113,7 @@ class _HomeScreenState extends State<HomeScreen> {
           regNo: result['regNo']!,
           name: result['name']!,
           currentClass: result['class']!,
-          personalInfo: {},
+          personInfo: {},
         );
 
         await FirebaseService.addDocument(
@@ -526,13 +526,15 @@ class _HomeScreenState extends State<HomeScreen> {
           );
         },
       );
-
+      List<Student> students = [];
       // Proceed based on user selection
       if (selectedTemplate == 'subject') {
-        final filePath = await SubjectTemplate.generateSubjectTemplate();
+        final filePath =
+            await SubjectTemplate.generateSubjectTemplate(students: students);
         _showSnackBar('Subject template downloaded to: $filePath');
       } else if (selectedTemplate == 'traitsAndSkills') {
-        final filePath = await TraitsTemplate.generateTraitsTemplate();
+        final filePath =
+            await TraitsTemplate.generateTraitsTemplate(students: []);
         _showSnackBar('Traits and Skills template downloaded to: $filePath');
       } else {
         _showSnackBar('No template selected.');
@@ -611,7 +613,7 @@ class _HomeScreenState extends State<HomeScreen> {
           name: result['name']!,
           currentClass: result['class']!,
           photo: student.photo,
-          personalInfo: student.personalInfo,
+          personInfo: student.personInfo,
         );
 
         await FirebaseService.updateOrAddDocument(

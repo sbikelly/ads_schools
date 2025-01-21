@@ -1,10 +1,26 @@
+import 'package:ads_schools/helpers/firebase_helper.dart';
+import 'package:ads_schools/models/models.dart';
 import 'package:ads_schools/services/firebase_service.dart';
 import 'package:ads_schools/services/template_service.dart';
-import 'package:ads_schools/util/functions.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
-import '../models/models.dart';
+class AddSubjectsToClassDialog extends StatefulWidget {
+  final String classId;
+  final String sessionId;
+  final String termId;
+
+  const AddSubjectsToClassDialog({
+    super.key,
+    required this.classId,
+    required this.sessionId,
+    required this.termId,
+  });
+
+  @override
+  State<AddSubjectsToClassDialog> createState() =>
+      _AddSubjectsToClassDialogState();
+}
 
 class CreateClassDialog extends StatefulWidget {
   final SchoolClass? classToEdit;
@@ -13,22 +29,6 @@ class CreateClassDialog extends StatefulWidget {
 
   @override
   State<CreateClassDialog> createState() => _CreateClassDialogState();
-}
-
-class CreateSubjectDialog extends StatefulWidget {
-  final String classId;
-  final String sessionId;
-  final String termId;
-
-  const CreateSubjectDialog({
-    super.key,
-    required this.classId,
-    required this.sessionId,
-    required this.termId,
-  });
-
-  @override
-  State<CreateSubjectDialog> createState() => _CreateSubjectDialogState();
 }
 
 class PerformanceDialog extends StatefulWidget {
@@ -50,15 +50,164 @@ class SkillsAndTraitsDialog extends StatefulWidget {
   final String classId;
   final String sessionId;
   final String termId;
+  final List<Student> students;
   const SkillsAndTraitsDialog({
     super.key,
     required this.classId,
     required this.sessionId,
     required this.termId,
+    required this.students,
   });
 
   @override
   State<SkillsAndTraitsDialog> createState() => _SkillsAndTraitsDialogState();
+}
+
+class _AddSubjectsToClassDialogState extends State<AddSubjectsToClassDialog> {
+  final List<Subject> _availableSubjects = [];
+  final List<Subject> _selectedSubjects = [];
+  final List<Subject> _existingSubjects = [];
+  bool _isLoading = true;
+  bool _isSubmitting = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Add Subjects to Class'),
+      content: SizedBox(
+        width: MediaQuery.of(context).size.width * 0.5,
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _availableSubjects.isEmpty
+                ? const Text('No subjects available to select.')
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Expanded(
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: _availableSubjects.length,
+                          itemBuilder: (context, index) {
+                            final subject = _availableSubjects[index];
+                            final isSelected =
+                                _selectedSubjects.contains(subject);
+                            return CheckboxListTile(
+                              value: isSelected,
+                              title: Text(subject.name),
+                              onChanged: (selected) {
+                                setState(() {
+                                  if (selected == true) {
+                                    _selectedSubjects.add(subject);
+                                  } else {
+                                    _selectedSubjects.remove(subject);
+                                  }
+                                });
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: _isSubmitting ? null : _submitSelectedSubjects,
+          child: _isSubmitting
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Add Selected Subjects'),
+        ),
+      ],
+    );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAvailableAndExistingSubjects();
+  }
+
+  Future<void> _loadAvailableAndExistingSubjects() async {
+    setState(() => _isLoading = true);
+
+    try {
+      // Fetch available subjects
+      final documents = await FirebaseService.getAllDocuments('subjects');
+      final subjects =
+          documents.map((doc) => Subject.fromFirestore(doc)).toList();
+
+      // Fetch already added subjects for the class
+      final collectionP =
+          'classes/${widget.classId}/sessions/${widget.sessionId}/terms/${widget.termId}/subjects';
+      final existingDocuments =
+          await FirebaseService.getAllDocuments(collectionP);
+      final existingSubjects =
+          existingDocuments.map((doc) => Subject.fromFirestore(doc)).toList();
+
+      setState(() {
+        _availableSubjects.addAll(subjects);
+        _existingSubjects.addAll(existingSubjects);
+
+        // Mark existing subjects as selected
+        for (var subject in _availableSubjects) {
+          if (_existingSubjects.any((existing) => existing.id == subject.id)) {
+            _selectedSubjects.add(subject);
+          }
+        }
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error loading subjects: $e')),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _submitSelectedSubjects() async {
+    if (_selectedSubjects.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select at least one subject.')),
+      );
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+
+    try {
+      // Filter new subjects (exclude already existing ones)
+      final newSubjects = _selectedSubjects
+          .where((subject) =>
+              !_existingSubjects.any((existing) => existing.id == subject.id))
+          .toList();
+
+      if (newSubjects.isNotEmpty) {
+        final newSubjectMaps =
+            newSubjects.map((subject) => subject.toMap()).toList();
+
+        await FirebaseService.batchAddDocuments(
+          'classes/${widget.classId}/sessions/${widget.sessionId}/terms/${widget.termId}/subjects',
+          newSubjectMaps,
+        );
+      }
+
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error adding subjects: $e')),
+      );
+    } finally {
+      setState(() => _isSubmitting = false);
+    }
+  }
 }
 
 class _CreateClassDialogState extends State<CreateClassDialog> {
@@ -287,129 +436,6 @@ class _CreateClassDialogState extends State<CreateClassDialog> {
   }
 }
 
-class _CreateSubjectDialogState extends State<CreateSubjectDialog> {
-  final _formKey = GlobalKey<FormState>();
-  final List<TextEditingController> _subjectControllers = [
-    TextEditingController(),
-  ];
-  bool _isLoading = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Add New Subjects'),
-      content: SizedBox(
-        width: MediaQuery.of(context).size.width * 0.4,
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ...List.generate(
-                  _subjectControllers.length,
-                  (index) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _subjectControllers[index],
-                            decoration: const InputDecoration(
-                              labelText: 'Subject Name',
-                              hintText: 'e.g., Mathematics',
-                            ),
-                            validator: (value) => value?.isEmpty ?? true
-                                ? 'Please enter a subject name'
-                                : null,
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.add),
-                          onPressed: _addSubjectField,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        ElevatedButton(
-          onPressed: _isLoading ? null : _submitForm,
-          child: _isLoading
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Text('Add Subjects'),
-        ),
-      ],
-    );
-  }
-
-  @override
-  void dispose() {
-    for (var controller in _subjectControllers) {
-      controller.dispose();
-    }
-    super.dispose();
-  }
-
-  void _addSubjectField() {
-    setState(() {
-      _subjectControllers.add(TextEditingController());
-    });
-  }
-
-  Future<void> _submitForm() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() => _isLoading = true);
-
-    try {
-      final subjects = _subjectControllers
-          .map((controller) => controller.text.trim())
-          .where((text) => text.isNotEmpty)
-          .toList();
-
-      if (subjects.isNotEmpty) {
-        final subjectCollection = FirebaseFirestore.instance
-            .collection('classes')
-            .doc(widget.classId)
-            .collection('sessions')
-            .doc(widget.sessionId)
-            .collection('terms')
-            .doc(widget.termId)
-            .collection('subjects');
-
-        for (var subject in subjects) {
-          await subjectCollection.add({'name': subject});
-        }
-      }
-
-      if (mounted) Navigator.of(context).pop(true);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
-      }
-    } finally {
-      setState(() => _isLoading = false);
-    }
-  }
-}
-
 class _PerformanceDialogState extends State<PerformanceDialog> {
   @override
   Widget build(BuildContext context) {
@@ -528,6 +554,9 @@ class _SkillsAndTraitsDialogState extends State<SkillsAndTraitsDialog> {
               debugPrint('No data available in snapshot.');
               return const Center(child: CircularProgressIndicator());
             }
+            if (widget.students.isEmpty) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
             final scores = snapshot.data!.docs.map((doc) {
               final data = doc.data() as Map<String, dynamic>;
@@ -551,7 +580,8 @@ class _SkillsAndTraitsDialogState extends State<SkillsAndTraitsDialog> {
                   children: [
                     ElevatedButton.icon(
                       onPressed: () {
-                        TraitsTemplate.generateTraitsTemplate();
+                        TraitsTemplate.generateTraitsTemplate(
+                            students: widget.students);
                       },
                       icon: const Icon(Icons.download),
                       label: const Text('Download Template'),
