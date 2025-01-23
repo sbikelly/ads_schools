@@ -485,6 +485,14 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  flutter_web_qrcode_scanner:
+    dependency: "direct main"
+    description:
+      name: flutter_web_qrcode_scanner
+      sha256: a4fa2c7d2e6049cfe8400617417fb0efe63886656a2be0c7ee136d77bd17097b
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.1.1"
   frontend_server_client:
     dependency: transitive
     description:
@@ -909,6 +917,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.0.2"
+  qr_bar_code_scanner_dialog:
+    dependency: "direct main"
+    description:
+      name: qr_bar_code_scanner_dialog
+      sha256: dcb937816d4e562141530265bd1ca39fe00f57000fd79e26c163c957d443e9e4
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.0.5"
   qr_code_scanner:
     dependency: "direct main"
     description:

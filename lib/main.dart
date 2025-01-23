@@ -1,7 +1,6 @@
 import 'package:ads_schools/error_screen.dart';
 import 'package:ads_schools/helpers/constants.dart';
 import 'package:ads_schools/screens/auth/login_screen.dart';
-import 'package:ads_schools/screens/classes_screen.dart';
 import 'package:ads_schools/screens/dashboard/dashboard_home.dart';
 import 'package:ads_schools/services/auth_service.dart';
 import 'package:ads_schools/services/navigator_service.dart';
@@ -77,7 +76,7 @@ class MyApp extends StatelessWidget {
             ),
           ),
         ),
-        home: ClassesScreen(),
+        home: MainHome(),
         // const LoginScreen(), // Change to AuthWrapper for conditional navigation
         debugShowCheckedModeBanner: false,
       ),

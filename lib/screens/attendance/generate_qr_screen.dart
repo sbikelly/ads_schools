@@ -34,22 +34,32 @@ class GenerateQRScreen extends StatelessWidget {
     );
   }
 
-  pw.Widget infoRow({required String title, required String? info}) {
-    return pw.Padding(
-      padding: const pw.EdgeInsets.symmetric(vertical: 2.0),
-      child: pw.Row(
-        children: [
-          pw.Text(
-            "$title: ",
-            style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold),
-          ),
-          pw.SizedBox(width: 10),
-          pw.Text(
-            info ?? 'Not Available',
-            style: pw.TextStyle(fontSize: 12),
-          ),
-        ],
-      ),
+  pw.Widget infoSection(Student student) {
+    return pw.Row(
+      children: [
+        pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+          pw.Text('Name: ',
+              style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+          pw.Text('Reg. No: ',
+              style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+          pw.Text('Class: ',
+              style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+          pw.Text('Gender',
+              style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+          pw.Text('D.O.B: ',
+              style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+        ]),
+        pw.SizedBox(width: 8.0),
+        pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+          pw.Text(student.name),
+          pw.Text(student.regNo),
+          pw.Text(student.currentClass),
+          pw.Text(student.gender ?? 'N/A'),
+          pw.Text(student.dob != null
+              ? '${student.dob!.day}/${student.dob!.month}/${student.dob!.year}'
+              : 'N/A'),
+        ])
+      ],
     );
   }
 
@@ -112,22 +122,7 @@ class GenerateQRScreen extends StatelessWidget {
                   pw.SizedBox(height: 10),
                   pw.Padding(
                     padding: const pw.EdgeInsets.symmetric(horizontal: 10.0),
-                    child: pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.center,
-                      mainAxisAlignment: pw.MainAxisAlignment.center,
-                      children: [
-                        infoRow(title: "Name", info: student.name),
-                        infoRow(title: "Reg No", info: student.regNo),
-                        infoRow(title: "Class", info: student.currentClass),
-                        infoRow(
-                          title: "D.O.B",
-                          info: student.dob != null
-                              ? '${student.dob!.day}/${student.dob!.month}/${student.dob!.year}'
-                              : null,
-                        ),
-                        infoRow(title: "Gender", info: student.gender),
-                      ],
-                    ),
+                    child: infoSection(student),
                   ),
                 ],
               ),
@@ -162,8 +157,7 @@ class GenerateQRScreen extends StatelessWidget {
                       height: 100,
                       child: pw.BarcodeWidget(
                         barcode: pw.Barcode.qrCode(),
-                        data:
-                            '${student.name} | ${student.regNo} | ${student.currentClass}',
+                        data: student.regNo,
                         drawText: false,
                       ),
                     ),

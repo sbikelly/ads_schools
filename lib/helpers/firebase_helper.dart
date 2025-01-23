@@ -1,253 +1,61 @@
-import 'dart:io';
-import 'dart:typed_data';
-
 import 'package:ads_schools/models/models.dart';
 import 'package:ads_schools/services/firebase_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 
 class AttendanceService {
-  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  static Stream<List<Map<String, dynamic>>> fetchFilteredAttendance(
+      {required DateTime date, String? classFilter}) {
+    final startOfDay = _startOfDay(date);
+    final endOfDay = _endOfDay(date);
 
-  Future<int> countAttendance(
-      String classId, String status, String startDate, String endDate) async {
-    final querySnapshot = await FirebaseFirestore.instance
-        .collection('Attendance')
-        .where('classId', isEqualTo: classId)
-        .where('date', isGreaterThanOrEqualTo: startDate)
-        .where('date', isLessThanOrEqualTo: endDate)
-        .get();
+    Query query = FirebaseFirestore.instance.collection('attendance')
+      ..where('timeStamp', isGreaterThanOrEqualTo: startOfDay)
+          .where('timeStamp', isLessThanOrEqualTo: endOfDay);
 
-    int count = 0;
-    for (var doc in querySnapshot.docs) {
-      final students = doc.data()['students'] as Map<String, dynamic>;
-      count += students.values
-          .where((student) => student['status'] == status)
-          .length;
+    if (classFilter != null && classFilter.isNotEmpty) {
+      query = query.where('currentClass',
+          isEqualTo: classFilter); // Filter by class
     }
-    return count;
+
+    return query.snapshots().map((snapshot) => snapshot.docs
+        .map((doc) => doc.data() as Map<String, dynamic>)
+        .toList());
   }
 
-  Future<List<Map<String, dynamic>>> fetchAttendance(
-      {DateTime? startDate, DateTime? endDate, String? studentId}) async {
-    try {
-      Query<Map<String, dynamic>> query = _firestore.collection('attendance');
-
-      if (startDate != null) {
-        query = query.where('timeStamp', isGreaterThanOrEqualTo: startDate);
-      }
-      if (endDate != null) {
-        query = query.where('timeStamp', isLessThanOrEqualTo: endDate);
-      }
-      if (studentId != null) {
-        query = query.where('studentId', isEqualTo: studentId);
-      }
-
-      final snapshot = await query.get();
-      return snapshot.docs.map((doc) => doc.data()).toList();
-    } on Exception catch (e) {
-      debugPrint('error fetching attendance $e');
-      return [];
-    }
-  }
-
-  Future<Map<String, StudentAttendance>> fetchAttendance1(
-      String classId, String date,
-      [endDate]) async {
-    try {
-      final docRef =
-          FirebaseFirestore.instance.collection('Attendance').doc(classId);
-      //.doc('$classId-$date');
-
-      final snapshot = await docRef.get();
-
-      if (!snapshot.exists) return {};
-
-      final data = snapshot.data()?['students'] as Map<String, dynamic>? ?? {};
-      return data.map((id, details) => MapEntry(
-            id,
-            StudentAttendance.fromMap({...details, 'studentId': id}),
-          ));
-    } on Exception catch (e) {
-      throw Exception('Error fetching Attendance 1 ====: $e');
-    }
-  }
-
-  Future<List<Map<String, dynamic>>> fetchStudentAttendance(
-      String studentId) async {
-    final querySnapshot =
-        await FirebaseFirestore.instance.collection('Attendance').get();
-
-    List<Map<String, dynamic>> records = [];
-
-    for (var doc in querySnapshot.docs) {
-      final students = doc['students'] as Map<String, dynamic>?;
-      if (students != null && students.containsKey(studentId)) {
-        records.add({
-          'date': doc['date'],
-          ...students[studentId],
-        });
-      }
-    }
-    return records;
-  }
-
-  void generateAndSharePdf(String studentId, String studentName) async {
-    final attendanceRecords = await fetchStudentAttendance(studentId);
-    final pdfBytes =
-        await generateAttendanceReportPdf(studentName, attendanceRecords);
-
-    // Use Printing to preview and share
-    await Printing.layoutPdf(onLayout: (_) => pdfBytes);
-
-    // Save to file (optional)
-    final directory = Directory.systemTemp;
-    final file = File('${directory.path}/$studentName-attendance-report.pdf');
-    await file.writeAsBytes(pdfBytes);
-    print('Saved PDF to ${file.path}');
-  }
-
-  Future<void> generateAttendanceReport(List<Map<String, dynamic>> data) async {
-    // Implement PDF generation using flutter_pdf
-  }
-
-  Future<Uint8List> generateAttendanceReportPdf(
-      String studentName, List<Map<String, dynamic>> attendanceRecords) async {
-    final pdf = pw.Document();
-
-    pdf.addPage(
-      pw.Page(
-        build: (context) => pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: [
-            pw.Text(
-              'Attendance Report',
-              style: pw.TextStyle(
-                fontSize: 24,
-                fontWeight: pw.FontWeight.bold,
-              ),
-            ),
-            pw.SizedBox(height: 10),
-            pw.Text(
-              'Student Name: $studentName',
-              style: pw.TextStyle(fontSize: 16),
-            ),
-            pw.SizedBox(height: 20),
-            pw.Table(
-              border: pw.TableBorder.all(),
-              columnWidths: {
-                0: pw.FlexColumnWidth(1),
-                1: pw.FlexColumnWidth(2),
-                2: pw.FlexColumnWidth(2),
-                3: pw.FlexColumnWidth(2),
-              },
-              children: [
-                // Table Header
-                pw.TableRow(
-                  children: [
-                    pw.Text('Date',
-                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                    pw.Text('Status',
-                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                    pw.Text('Sign-In Time',
-                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                    pw.Text('Sign-Out Time',
-                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                  ],
-                ),
-                // Table Rows
-                ...attendanceRecords.map((record) {
-                  return pw.TableRow(
-                    children: [
-                      pw.Text(record['date'] ?? ''),
-                      pw.Text(record['status'] ?? ''),
-                      pw.Text(
-                        record['signInTime'] != null
-                            ? (record['signInTime'] as Timestamp)
-                                .toDate()
-                                .toLocal()
-                                .toString()
-                            : 'N/A',
-                      ),
-                      pw.Text(
-                        record['signOutTime'] != null
-                            ? (record['signOutTime'] as Timestamp)
-                                .toDate()
-                                .toLocal()
-                                .toString()
-                            : 'N/A',
-                      ),
-                    ],
-                  );
-                }),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-
-    return pdf.save();
-  }
-
-  Future<void> markAttendance1(
-      String classId, String date, StudentAttendance attendance) async {
-    final docRef = FirebaseFirestore.instance
-        .collection('Attendance')
-        .doc('$classId-$date');
-
-    await docRef.set({
-      'classId': classId,
-      'date': date,
-      'students.${attendance.studentId}': attendance.toMap(),
-    }, SetOptions(merge: true));
-  }
-
-  Future<void> updateAttendance(String id, String status) async {
-    await _firestore
-        .collection('attendance')
-        .doc(id)
-        .update({'status': status});
-  }
-
-  /// Marks attendance for a specific user on a specific date.
   /// If the attendance record exists, it updates the status.
   /// Otherwise, it creates a new attendance record.
-  static Future<void> markAttendance({
-    required String userId,
-    required String status,
-    required DateTime date,
-  }) async {
-    try {
-      // Reference to the attendance collection
-      final attendanceRef = _firestore.collection('attendance');
+  static Future<void> recordAttendance(String studentId) async {
+    final today = DateTime.now();
+    final dateKey = "${studentId}_${today.toIso8601String().split('T').first}";
 
-      // Query to find an existing record for the user and date
-      final query = await attendanceRef
-          .where('userId', isEqualTo: userId)
-          .where('timeStamp', isGreaterThanOrEqualTo: _startOfDay(date))
-          .where('timeStamp', isLessThanOrEqualTo: _endOfDay(date))
-          .get();
-      debugPrint("quer finished $query");
+    final attendanceDoc =
+        FirebaseFirestore.instance.collection('attendance').doc(dateKey);
 
-      if (!query.docs.isNotEmpty) {
-        // Record does not exist, create it
-        await attendanceRef.add({
-          'userId': userId,
-          'status': status,
-          'timeStamp': date,
+    final snapshot = await attendanceDoc.get();
+
+    if (snapshot.exists) {
+      final data = snapshot.data()!;
+      if (data['signOutTime'] == null) {
+        // Sign out the student
+        await attendanceDoc.update({
+          'signOutTime': Timestamp.now(),
+          'status': 'Signed Out',
         });
-        debugPrint('Attendance created for user $userId on $date');
       } else {
-        // Record exists, update it
-        final docId = query.docs.first.id;
-        await attendanceRef.doc(docId).update({'status': status});
-        print('Attendance updated for user $userId on $date');
+        // Already signed out
+        throw Exception("Student has already signed out.");
       }
-    } catch (e) {
-      print('Error marking attendance: $e');
+    } else {
+      // Sign in the student
+      await attendanceDoc.set({
+        'studentId': studentId,
+        'date': Timestamp.fromDate(today),
+        'signInTime': Timestamp.now(),
+        'status': 'Signed In',
+        'signOutTime': null,
+        'currentClass': 'QBykrlq5m3IUXINQxr1h'
+      });
     }
   }
 
@@ -442,19 +250,6 @@ class FirebaseHelper {
     if (total >= 65) return 'Satisfactory';
     if (total >= 50) return 'Pass';
     return 'Fail';
-  }
-
-  static Future<List<Attendance>> fetchAttendance() async {
-    try {
-      final attendanceSnapshot =
-          await FirebaseService.getDataStreamFromFirestore<Attendance>(
-        collection: 'attendance',
-        fromFirestore: (doc) => Attendance.fromFirestore(doc),
-      ).first; // Get the first snapshot from the stream
-      return attendanceSnapshot;
-    } catch (e) {
-      throw Exception('Error fetching attendance : $e');
-    }
   }
 
 // Fetch classes

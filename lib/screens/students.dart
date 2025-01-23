@@ -187,13 +187,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
             ),
             IconButton(
               icon: const Icon(Icons.qr_code_scanner, size: 20),
-              onPressed: () {
-                AttendanceService.markAttendance(
-                  userId: student.studentId!,
-                  status: 'Present',
-                  date: DateTime.now(),
-                );
-              },
+              onPressed: () {},
             ),
             IconButton(
               icon: const Icon(Icons.delete, size: 20, color: Colors.red),

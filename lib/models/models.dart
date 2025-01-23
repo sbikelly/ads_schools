@@ -2,75 +2,53 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
 class Attendance {
-  final String id;
-  final String userId;
-  final String status;
-  final DateTime timeStamp;
+  String? id;
+  String studentId;
+  DateTime? date;
+  String status; // e.g., Signed In, Signed out,
+  DateTime? signInTime;
+  DateTime? signOutTime;
+  String? currentClass;
+  Timestamp? timeStamp;
 
-  Attendance({
-    required this.id,
-    required this.userId,
-    required this.status,
-    required this.timeStamp,
-  });
+  Attendance(
+      {this.id,
+      required this.studentId,
+      this.date,
+      required this.status,
+      this.signInTime,
+      this.signOutTime,
+      this.currentClass,
+      this.timeStamp});
+
   factory Attendance.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     return Attendance(
-      id: doc.id,
-      userId: data['userId'],
-      status: data['status'],
-      timeStamp: (data['timeStamp'] as Timestamp).toDate(),
-    );
+        id: doc.id,
+        studentId: data['studentId'] ?? '',
+        date:
+            data['date'] != null ? (data['date'] as Timestamp).toDate() : null,
+        status: data['status'] ?? '',
+        signInTime: data['signInTime'] != null
+            ? (data['signInTime'] as Timestamp).toDate()
+            : null,
+        signOutTime: data['signOutTime'] != null
+            ? (data['signOutTime'] as Timestamp).toDate()
+            : null,
+        currentClass: data['currentClass'],
+        timeStamp: data['timeStamp']);
   }
-  factory Attendance.fromMap(Map<String, dynamic> map) => Attendance(
-        id: map['id'],
-        userId: map['userId'],
-        status: map['status'],
-        timeStamp: map['timeStamp'],
-      );
 
-  Map<String, dynamic> toMap() => {
-        'userId': userId,
-        'status': status,
-        'timeStamp': DateTime.now(),
-      };
-}
-
-class Attendance1 {
-  final String id;
-  String? classId;
-  StudentAttendance? students;
-  DateTime? date;
-
-  Attendance1({
-    required this.id,
-    this.classId,
-    this.students,
-    this.date,
-  });
-  factory Attendance1.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-    return Attendance1(
-      id: doc.id,
-      classId: data['classId'] ?? '',
-      students: StudentAttendance.fromMap(data['students']),
-      date: data['date'] != null
-          ? (data['date'] as Timestamp).toDate()
-          : ('2025-01-20 00:00:00.000' as Timestamp).toDate(),
-    );
+  Map<String, dynamic> toMap() {
+    return {
+      'currentClass': currentClass,
+      'studentId': studentId,
+      'date': date,
+      'status': status,
+      'signInTime': signInTime,
+      'signOutTime': signOutTime,
+    };
   }
-  factory Attendance1.fromMap(Map<String, dynamic> map) => Attendance1(
-        id: map['id'],
-        classId: map['classId'] ?? '',
-        students: StudentAttendance.fromMap(map['students']),
-        date: map['date'] ?? ('2025-01-20 00:00:00.000' as Timestamp).toDate(),
-      );
-
-  Map<String, dynamic> toMap() => {
-        'classId': classId,
-        'students': students?.toMap(),
-        'date': date ?? DateTime.now(),
-      };
 }
 
 class AttendanceStatus {
@@ -195,8 +173,8 @@ class PreviousClass {
 }
 
 class SchoolClass {
-  final String id;
-  final String name;
+  late final String id;
+  late final String name;
   final DateTime createdAt;
 
   SchoolClass({
@@ -341,43 +319,6 @@ class Student {
         'bloodGroup': bloodGroup,
         'dateJoined': Timestamp.fromDate(dateJoined ?? DateTime.now()),
       };
-}
-
-class StudentAttendance {
-  final String studentId;
-  String status; // e.g., Present, Absent, Late
-  DateTime? signInTime;
-  DateTime? signOutTime;
-
-  StudentAttendance({
-    required this.studentId,
-    required this.status,
-    this.signInTime,
-    this.signOutTime,
-  });
-
-  factory StudentAttendance.fromMap(Map<String, dynamic> map) {
-    return StudentAttendance(
-      studentId: map['studentId'] ?? '',
-      status: map['status'] ?? 'Absent',
-      signInTime: map['signInTime'] != null
-          ? (map['signInTime'] as Timestamp).toDate()
-          : ('2025-01-20 00:00:00.000' as Timestamp).toDate(),
-      signOutTime: map['signOutTime'] != null
-          ? (map['signOutTime'] as Timestamp).toDate()
-          : ('2025-01-20 00:00:00.000' as Timestamp).toDate(),
-    );
-  }
-
-  Map<String, dynamic> toMap() {
-    return {
-      'studentId': studentId,
-      'status': status,
-      'signInTime': signInTime != null ? Timestamp.fromDate(signInTime!) : null,
-      'signOutTime':
-          signOutTime != null ? Timestamp.fromDate(signOutTime!) : null,
-    };
-  }
 }
 
 class Subject {

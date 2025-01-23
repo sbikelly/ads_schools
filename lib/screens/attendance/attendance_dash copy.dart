@@ -180,14 +180,17 @@ class _AttendanceAdminDashboardState extends State<AttendanceAdminDashboard> {
         ),
       ),
     ];
-    return SizedBox(
-      height: 200,
-      child: PieChart(
-        PieChartData(
-          sections: sections,
-          centerSpaceRadius: 80,
-          sectionsSpace: 2,
-          borderData: FlBorderData(show: false),
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: SizedBox(
+        height: 200,
+        child: PieChart(
+          PieChartData(
+            sections: sections,
+            centerSpaceRadius: 80,
+            sectionsSpace: 2,
+            borderData: FlBorderData(show: false),
+          ),
         ),
       ),
     );
@@ -215,17 +218,8 @@ class _AttendanceAdminDashboardState extends State<AttendanceAdminDashboard> {
         }
         return Column(
           children: [
-            Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                child: Row(
-                  children: [
-                    Expanded(
-                        child: _buildAttendancePieChart(attendanceRecords)),
-                    const SizedBox(width: 8), // Add some spacing between charts
-                    Expanded(
-                        child: _buildSignInOutLineChart(attendanceRecords)),
-                  ],
-                )),
+            _buildAttendancePieChart(attendanceRecords),
+            _buildSignInOutLineChart(attendanceRecords),
             Expanded(child: _buildAttendanceDetails(attendanceRecords)),
           ],
         );
@@ -331,124 +325,59 @@ class _AttendanceAdminDashboardState extends State<AttendanceAdminDashboard> {
     signOutPoints.sort((a, b) => a.x.compareTo(b.x));
 
     return Padding(
-      padding: const EdgeInsets.symmetric(
-          horizontal: 4.0), // Add some horizontal padding for responsiveness
+      padding: const EdgeInsets.all(8.0),
       child: SizedBox(
-        height: 200,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Text(
-                "Sign-in and Sign-out Trends",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-            ),
-            Expanded(
-              child: LineChart(
-                LineChartData(
-                  gridData: FlGridData(
-                      show: true,
-                      drawVerticalLine: true,
-                      horizontalInterval: 1,
-                      getDrawingHorizontalLine: (value) {
-                        return FlLine(
-                            color: Colors.grey.withOpacity(0.2),
-                            strokeWidth: 0.8);
-                      },
-                      getDrawingVerticalLine: (value) {
-                        return FlLine(
-                            color: Colors.grey.withOpacity(0.2),
-                            strokeWidth: 0.8);
-                      }),
-                  titlesData: FlTitlesData(
-                    show: true,
-                    bottomTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          interval: 120,
-                          getTitlesWidget: (value, meta) {
-                            final hours = (value / 60).floor();
-                            final minutes = (value % 60).round();
-                            return Text(
-                              '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}',
-                              style: const TextStyle(fontSize: 10),
-                            );
-                          },
-                        ),
-                        axisNameWidget: Text("Time Of Day (HH:MM)",
-                            style: TextStyle(fontSize: 10))),
-                    leftTitles: AxisTitles(
-                        sideTitles: SideTitles(showTitles: false),
-                        axisNameWidget: Text("Sign in/out Status",
-                            style: TextStyle(fontSize: 10))),
+        height: 150,
+        child: LineChart(
+          LineChartData(
+            gridData: FlGridData(
+                show: true, drawVerticalLine: true, horizontalInterval: 1),
+            titlesData: FlTitlesData(
+                bottomTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    interval: 60,
+                    getTitlesWidget: (value, meta) {
+                      final hours = (value / 60).floor();
+                      final minutes = (value % 60).round();
+                      return Text(
+                        '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}',
+                        style: const TextStyle(fontSize: 10),
+                      );
+                    },
                   ),
-                  borderData: FlBorderData(
-                    show: true,
-                    border: Border.all(color: Colors.grey, width: 1),
-                  ),
-                  minX: 0,
-                  maxX: 1440, // Full day in minutes
-                  minY: -2,
-                  maxY: 2,
-                  lineTouchData: LineTouchData(
-                    //touchTooltipBgColor: Colors.blueGrey,
-                    touchTooltipData: LineTouchTooltipData(
-                        //tooltipBgColor: Colors.blueGrey,
-                        getTooltipItems: (List<LineBarSpot> touchedSpots) {
-                      return touchedSpots.map((spot) {
-                        final time = _formatTooltipTime(spot.x.round());
-                        final event = spot.y > 0 ? "Sign In" : "Sign Out";
-                        return LineTooltipItem(
-                          "$event at $time",
-                          const TextStyle(color: Colors.white),
-                        );
-                      }).toList();
-                    }),
-                  ),
-                  lineBarsData: [
-                    LineChartBarData(
-                      spots: signInPoints,
-                      isCurved: true,
-                      curveSmoothness: 0.3,
-                      color: Colors.blue,
-                      barWidth: 2,
-                      isStrokeCapRound: true,
-                      dotData: FlDotData(
-                          show: true,
-                          getDotPainter: (spot, percent, barData, index) {
-                            return FlDotCirclePainter(
-                              radius: 4,
-                              color: Colors.blue,
-                              strokeWidth: 1,
-                            );
-                          }),
-                      belowBarData: BarAreaData(show: false),
-                    ),
-                    LineChartBarData(
-                      spots: signOutPoints,
-                      isCurved: true,
-                      curveSmoothness: 0.3,
-                      color: Colors.orange,
-                      barWidth: 2,
-                      isStrokeCapRound: true,
-                      dotData: FlDotData(
-                          show: true,
-                          getDotPainter: (spot, percent, barData, index) {
-                            return FlDotCirclePainter(
-                              radius: 4,
-                              color: Colors.orange,
-                              strokeWidth: 1,
-                            );
-                          }),
-                      belowBarData: BarAreaData(show: false),
-                    ),
-                  ],
                 ),
+                leftTitles:
+                    AxisTitles(sideTitles: SideTitles(showTitles: false))),
+            borderData: FlBorderData(
+              show: true,
+              border: Border.all(color: const Color(0xff37434d), width: 1),
+            ),
+            minX: 0,
+            maxX: 1440, // Full day in minutes
+            minY: -2,
+            maxY: 2,
+            lineBarsData: [
+              LineChartBarData(
+                spots: signInPoints,
+                isCurved: true,
+                color: Colors.blue,
+                barWidth: 2,
+                isStrokeCapRound: true,
+                dotData: FlDotData(show: false),
+                belowBarData: BarAreaData(show: false),
               ),
-            )
-          ],
+              LineChartBarData(
+                spots: signOutPoints,
+                isCurved: true,
+                color: Colors.orange,
+                barWidth: 2,
+                isStrokeCapRound: true,
+                dotData: FlDotData(show: false),
+                belowBarData: BarAreaData(show: false),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -461,12 +390,6 @@ class _AttendanceAdminDashboardState extends State<AttendanceAdminDashboard> {
       return timestamp.toLocal().toString().split(' ')[1];
     }
     return 'N/A';
-  }
-
-  String _formatTooltipTime(int minutes) {
-    final hours = (minutes / 60).floor();
-    final mins = minutes % 60;
-    return '${hours.toString().padLeft(2, '0')}:${mins.toString().padLeft(2, '0')}';
   }
 
   Future<void> _initializeData() async {

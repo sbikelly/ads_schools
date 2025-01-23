@@ -1,5 +1,4 @@
 import 'package:ads_schools/helpers/firebase_helper.dart';
-import 'package:ads_schools/screens/attendance/attendance_dash.dart';
 import 'package:ads_schools/services/template_service.dart';
 import 'package:ads_schools/widgets/my_widgets.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -147,19 +146,9 @@ class _ClassesScreenState extends State<ClassesScreen> {
                 selected: _selectedClassId == classData.id,
                 onTap: () => setState(() => _selectedClassId = classData.id),
                 trailing: IconButton(
-                    icon: const Icon(Icons.markunread_mailbox),
-                    onPressed: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => AttendanceScreen(
-                                  classId: classData.id,
-                                  startDate: '2025-01-20 00:00:00.000',
-                                  endDate: '2025-01-20 00:00:00.000')),
-                        )),
-                /*IconButton(
                   icon: const Icon(Icons.delete),
                   onPressed: () => _confirmDeleteClass(classData),
-                ),*/
+                ),
               ),
             );
           },
@@ -202,16 +191,6 @@ class _ClassesScreenState extends State<ClassesScreen> {
 
             return ExpansionTile(
               title: Text(session.name),
-              trailing: IconButton(
-                  icon: const Icon(Icons.markunread_mailbox),
-                  onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => AttendanceScreen(
-                                classId: classId,
-                                startDate: '2025-01-20 00:00:00.000',
-                                endDate: '2025-01-20 00:00:00.000')),
-                      )),
               children: [_buildTerms(classId, sessionDoc.id)],
             );
           },
@@ -416,14 +395,6 @@ class _ClassesScreenState extends State<ClassesScreen> {
         _startDate = picked.start;
         _endDate = picked.end;
       });
-
-      print(_startDate);
-      print(_endDate);
-      Navigator.push(
-          context,
-          MaterialPageRoute(
-              builder: (context) => AttendanceScreen(
-                  classId: classId, startDate: _startDate, endDate: _endDate)));
     }
   }
 

@@ -1,4 +1,4 @@
-import 'package:ads_schools/screens/attendance/attendance_list_screen.dart';
+import 'package:ads_schools/screens/attendance/attendance_dash.dart';
 import 'package:ads_schools/screens/classes_screen.dart';
 import 'package:ads_schools/screens/students.dart';
 import 'package:ads_schools/screens/subjects.dart';
@@ -61,7 +61,7 @@ class MainHome extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                      builder: (context) => AttendanceDashboard()),
+                      builder: (context) => AttendanceAdminDashboard()),
                 );
               },
             ),
@@ -81,7 +81,13 @@ class MainHome extends StatelessWidget {
               context,
               icon: Icons.bar_chart,
               title: "Analytics",
-              onTap: () {},
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => AttendanceAdminDashboard()),
+                );
+              },
             ),
             _buildCard(
               context,
