@@ -224,24 +224,26 @@ class _StudentsScreenState extends State<StudentsScreen> {
               const Divider(
                 thickness: 5.0,
               ),
-              DataTable(
-                columns: const [
-                  DataColumn(label: Text('S/N')),
-                  DataColumn(label: Text('Reg No')),
-                  DataColumn(label: Text('Name')),
-                  DataColumn(label: Text('Gender')),
-                  DataColumn(label: Text('Class')),
-                  DataColumn(label: Text('DOB')),
-                  DataColumn(label: Text('Actions')),
-                ],
-                rows: filteredStudents
-                    .asMap()
-                    .entries
-                    .map((entry) => _buildDataRow(
-                          entry.value,
-                          entry.key + 1,
-                        ))
-                    .toList(),
+              SingleChildScrollView(
+                child: DataTable(
+                  columns: const [
+                    DataColumn(label: Text('S/N')),
+                    DataColumn(label: Text('Reg No')),
+                    DataColumn(label: Text('Name')),
+                    DataColumn(label: Text('Gender')),
+                    DataColumn(label: Text('Class')),
+                    DataColumn(label: Text('DOB')),
+                    DataColumn(label: Text('Actions')),
+                  ],
+                  rows: filteredStudents
+                      .asMap()
+                      .entries
+                      .map((entry) => _buildDataRow(
+                            entry.value,
+                            entry.key + 1,
+                          ))
+                      .toList(),
+                ),
               )
             ],
           ),

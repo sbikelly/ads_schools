@@ -31,8 +31,7 @@ class AttendanceService {
     return query.snapshots().map((snapshot) =>
         snapshot.docs.map((doc) => Attendance.fromFirestore(doc)).toList());
   }
-
-  static Future<void> recordAttendance(String studentId) async {
+static Future<void> recordAttendance(String studentId) async {
     final today = DateTime.now();
     final dateKey = "${studentId}_${today.toIso8601String().split('T').first}";
 
@@ -63,6 +62,61 @@ class AttendanceService {
         'signOutTime': null,
         'currentClass': 'QBykrlq5m3IUXINQxr1h'
       });
+    }
+  }
+
+  static Future<void> recordAttendance1(String studentId) async {
+    try {
+      final studentDoc = await FirebaseFirestore.instance
+          .collection('students')
+          .doc(studentId)
+          .get();
+
+      if (!studentDoc.exists) {
+        throw Exception('Student not found');
+      }
+
+      final student = Student.fromFirestore(studentDoc);
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+
+      // Query existing attendance for today
+      final attendanceQuery = await FirebaseFirestore.instance
+          .collection('attendance')
+          .where('studentId', isEqualTo: studentId)
+          .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(today))
+          .where('date',
+              isLessThan:
+                  Timestamp.fromDate(today.add(const Duration(days: 1))))
+          .get();
+
+      if (attendanceQuery.docs.isEmpty) {
+        // Create new attendance record
+        await FirebaseFirestore.instance.collection('attendance').add({
+          'studentId': studentId,
+          'date': Timestamp.fromDate(today),
+          'signInTime': Timestamp.now(),
+          'status': 'Signed In',
+          'signOutTime': null,
+          'currentClass': student.currentClass,
+          'timeStamp': Timestamp.now(),
+        });
+        return;
+      }
+
+      final existingAttendance = attendanceQuery.docs.first;
+      if (existingAttendance.data()['signOutTime'] == null) {
+        // Sign out
+        await existingAttendance.reference.update({
+          'signOutTime': Timestamp.now(),
+          'status': 'Signed Out',
+          'timeStamp': Timestamp.now(),
+        });
+      } else {
+        throw Exception('Student has already completed attendance for today');
+      }
+    } catch (e) {
+      throw Exception('Failed to record attendance: $e');
     }
   }
 
@@ -296,7 +350,7 @@ class _AttendanceAdminDashboardState extends State<AttendanceAdminDashboard> {
     // Prepare data for the line chart
     final signInPoints = <FlSpot>[];
     final signOutPoints = <FlSpot>[];
-
+/*
     if (attendanceRecords.isNotEmpty) {
       final firstRecordTime = attendanceRecords.first.signInTime!
           .toLocal(); // Assuming there will be at least one record, and all record dates are the same
@@ -319,7 +373,7 @@ class _AttendanceAdminDashboardState extends State<AttendanceAdminDashboard> {
               -1)); // Use '-1' as a constant to represent a sign out event
         }
       }
-    }
+    }*/
     //sort the points to maintain correct order of the line
     signInPoints.sort((a, b) => a.x.compareTo(b.x));
     signOutPoints.sort((a, b) => a.x.compareTo(b.x));

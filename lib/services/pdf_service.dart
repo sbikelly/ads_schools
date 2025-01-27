@@ -1,9 +1,84 @@
 import 'package:ads_schools/models/models.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 class PDFService {
+  static Future<Uint8List> generateAttendanceReport(
+      DateTime date,
+      List<Attendance> attendanceRecords,
+      List<Student> allStudents,
+      List<SchoolClass> classes,
+     String? selectedClass) async {
+    final pdf = pw.Document();
+
+    pdf.addPage(pw.MultiPage(
+      build: (pw.Context context) => [
+        pw.Header(
+          level: 0,
+          child: pw.Text('Attendance Report',
+              style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 24)),
+        ),
+        pw.SizedBox(height: 20),
+        pw.Text('Date: ${DateFormat('yyyy-MM-dd').format(date)}',
+            style: const pw.TextStyle(fontSize: 14)),
+         if (selectedClass != null && selectedClass!.isNotEmpty)
+        pw.Text('Class: ${classes.firstWhere((element) => element.id == selectedClass).name}', style: const pw.TextStyle(fontSize: 14)),
+        pw.SizedBox(height: 20),
+        pw.Table(
+          border: pw.TableBorder.all(),
+          columnWidths: const {
+            0: pw.FixedColumnWidth(100),
+            1: pw.FixedColumnWidth(100),
+            2: pw.FixedColumnWidth(80),
+            3: pw.FixedColumnWidth(80)
+          },
+          children: [
+            pw.TableRow(children: [
+              pw.Text('Student Name',
+                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+              pw.Text('Class',
+                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+              pw.Text('Sign In Time',
+                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+              pw.Text('Sign Out Time',
+                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+            ]),
+            ...attendanceRecords.map((record) {
+              final student = allStudents.firstWhere(
+                (std) => std.regNo == record.studentId,
+                orElse: () => Student(
+                    name: 'Unknown', regNo: '', currentClass: '', personInfo: {}),
+              );
+              final schoolClass = classes.firstWhere(
+                (cls) => cls.id == record.currentClass,
+                orElse: () => SchoolClass(
+                    id: 'Unknown', name: 'Unknown', createdAt: DateTime.now()),
+              );
+              return pw.TableRow(children: [
+                pw.Text(student.name),
+                pw.Text(schoolClass.name),
+                pw.Text(_formatTime(record.signInTime)),
+                pw.Text(_formatTime(record.signOutTime)),
+              ]);
+            }).toList()
+          ],
+        )
+      ],
+    ));
+
+    return await pdf.save();
+
+  }
+
+
+ static String _formatTime(DateTime? time) {
+    if (time == null) {
+      return 'N/A';
+    }
+    return DateFormat('HH:mm').format(time);
+  }
   
   static Future<Uint8List> generateReportCard(
       PdfPageFormat pageFormat, reportCardData) async {
