@@ -268,7 +268,7 @@ class Student {
       name: data['name'] ?? '',
       //previousClass: PreviousClass.fromMap(data['previousClass']),
       currentClass: data['currentClass'] ?? '',
-      photo: data['photo'] ?? 'assets/profile.jpg',
+      photo: data['photoUrl'],
       personInfo: data['personalInfo'] != null
           ? Map<String, dynamic>.from(data['personalInfo'] as Map)
           : {},

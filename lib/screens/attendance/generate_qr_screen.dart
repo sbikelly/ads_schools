@@ -1,181 +1,21 @@
 import 'package:ads_schools/models/models.dart';
-import 'package:ads_schools/widgets/my_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
-class GenerateQRScreen extends StatelessWidget {
+class StudentIdCardGenerator {
+  static const mainPDFColor = PdfColor.fromInt(0xFF134F47);
+  static const secondaryPDFColor = PdfColor.fromInt(0xFF996A2D);
+
   final Student student;
+  BuildContext context;
 
-  const GenerateQRScreen({
-    super.key,
-    required this.student,
-  });
+  StudentIdCardGenerator({required this.student, required this.context});
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: MyAppBar(isLoading: false),
-      body: Center(
-        child: ElevatedButton.icon(
-          onPressed: () => _generateAndPrintPDF(context),
-          icon: const Icon(Icons.picture_as_pdf),
-          label: const Text("Generate ID Card PDF"),
-          style: ElevatedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  pw.Widget infoSection(Student student) {
-    return pw.Row(
-      children: [
-        pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-          pw.Text('Name: ',
-              style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-          pw.Text('Reg. No: ',
-              style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-          pw.Text('Class: ',
-              style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-          pw.Text('Gender',
-              style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-          pw.Text('D.O.B: ',
-              style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-        ]),
-        pw.SizedBox(width: 8.0),
-        pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-          pw.Text(student.name),
-          pw.Text(student.regNo),
-          pw.Text(student.currentClass),
-          pw.Text(student.gender ?? 'N/A'),
-          pw.Text(student.dob != null
-              ? '${student.dob!.day}/${student.dob!.month}/${student.dob!.year}'
-              : 'N/A'),
-        ])
-      ],
-    );
-  }
-
-  Future<pw.Document> _buildPDF() async {
-    final pdf = pw.Document();
-
-    // Load images
-    final appLogo = pw.MemoryImage(
-      (await rootBundle.load('assets/app-logo.png')).buffer.asUint8List(),
-    );
-    final passport = pw.MemoryImage(
-      (await rootBundle.load(student.photo ?? 'assets/profile-placeholder.jpg'))
-          .buffer
-          .asUint8List(),
-    );
-
-    pdf.addPage(
-      pw.Page(
-        pageFormat: PdfPageFormat.a6,
-        build: (context) {
-          return pw.Container(
-            width: PdfPageFormat.a6.width,
-            child:
-                // Front Page
-                pw.Container(
-              width: PdfPageFormat.a6.width,
-              padding: const pw.EdgeInsets.all(8.0),
-              decoration: pw.BoxDecoration(
-                border: pw.Border.all(color: PdfColors.black, width: 2),
-                borderRadius: pw.BorderRadius.circular(10),
-              ),
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-                mainAxisAlignment: pw.MainAxisAlignment.center,
-                children: [
-                  _buildHeader(appLogo),
-                  pw.SizedBox(height: 10),
-                  pw.Text(
-                    "Student ID Card",
-                    textAlign: pw.TextAlign.center,
-                    style: pw.TextStyle(
-                      fontSize: 16,
-                      fontWeight: pw.FontWeight.bold,
-                    ),
-                  ),
-                  pw.SizedBox(height: 10),
-                  pw.Center(
-                    child: pw.Container(
-                      height: 100,
-                      width: 100,
-                      decoration: pw.BoxDecoration(
-                        shape: pw.BoxShape.circle,
-                        border: pw.Border.all(color: PdfColors.black, width: 1),
-                      ),
-                      child: pw.ClipOval(
-                        child: pw.Image(passport, fit: pw.BoxFit.cover),
-                      ),
-                    ),
-                  ),
-                  pw.SizedBox(height: 10),
-                  pw.Padding(
-                    padding: const pw.EdgeInsets.symmetric(horizontal: 10.0),
-                    child: infoSection(student),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-    pdf.addPage(
-      pw.Page(
-        pageFormat: PdfPageFormat.a6,
-        build: (context) {
-          return pw.Container(
-            width: PdfPageFormat.a6.width,
-            child:
-                // Back Page
-                pw.Container(
-              width: PdfPageFormat.a6.width,
-              padding: const pw.EdgeInsets.all(8.0),
-              decoration: pw.BoxDecoration(
-                border: pw.Border.all(color: PdfColors.black, width: 2),
-                borderRadius: pw.BorderRadius.circular(10),
-              ),
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-                mainAxisAlignment: pw.MainAxisAlignment.center,
-                children: [
-                  pw.SizedBox(height: 10),
-                  pw.Center(
-                    child: pw.Container(
-                      width: 100,
-                      height: 100,
-                      child: pw.BarcodeWidget(
-                        barcode: pw.Barcode.qrCode(),
-                        data: student.regNo,
-                        drawText: false,
-                      ),
-                    ),
-                  ),
-                  pw.SizedBox(height: 10),
-                  _buildFooter(),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-
-    return pdf;
-  }
-
-  Future<void> _generateAndPrintPDF(BuildContext context) async {
+  Future<void> generateAndPrint() async {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -187,51 +27,329 @@ class GenerateQRScreen extends StatelessWidget {
       await Printing.layoutPdf(
         onLayout: (PdfPageFormat format) async => pdf.save(),
       );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to generate PDF')),
+      );
     } finally {
-      Navigator.of(context).pop(); // Close the progress dialog
+      Navigator.of(context).pop();
     }
   }
 
-  static pw.Widget _buildFooter() {
+  pw.Widget _buildBackPage(pw.ImageProvider hologramPattern, headerFont) {
     return pw.Container(
-      margin: const pw.EdgeInsets.only(top: 10),
-      child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.center,
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: mainPDFColor, width: 3),
+        borderRadius: pw.BorderRadius.circular(15),
+      ),
+      child: pw.Stack(
         children: [
-          pw.Text(
-            'For inquiries, contact: info@adokwebsolutions.com.ng',
-            style: pw.TextStyle(fontSize: 10, color: PdfColors.grey),
+          pw.Positioned.fill(
+            child: pw.Opacity(
+              opacity: 0.3,
+              child: pw.Image(hologramPattern, fit: pw.BoxFit.cover),
+            ),
           ),
-          pw.Text(
-            'This ID card is non-transferable and must be presented on request.',
-            style: pw.TextStyle(fontSize: 8, color: PdfColors.grey),
+          pw.Align(
+            alignment: pw.Alignment.center,
+            child: pw.Opacity(
+              opacity: 0.1,
+              child: pw.Text(
+                'VALID 2023-2024',
+                style: pw.TextStyle(
+                  fontSize: 40,
+                  color: mainPDFColor,
+                ),
+              ),
+            ),
+          ),
+          pw.Column(
+            mainAxisAlignment: pw.MainAxisAlignment.center,
+            crossAxisAlignment: pw.CrossAxisAlignment.center,
+            children: [
+              pw.SizedBox(height: 20),
+              pw.Text('SCAN TO MARK ATTENDANCE/VERIFY',
+                  style: pw.TextStyle(
+                      font: headerFont[0], // Use Oswald Regular
+                      fontSize: 12,
+                      color: mainPDFColor,
+                      fontWeight: pw.FontWeight.bold)),
+              pw.Container(
+                width: 150,
+                height: 150,
+                margin: const pw.EdgeInsets.all(20),
+                child: pw.BarcodeWidget(
+                  barcode: pw.Barcode.qrCode(
+                    errorCorrectLevel: pw.BarcodeQRCorrectionLevel.high,
+                  ),
+                  data:
+                      'https://adokwebsolutions.com.ng/verify?reg=${student.regNo}',
+                  drawText: false,
+                ),
+              ),
+              _buildFooter(),
+              _buildEmergencyContact(),
+              _buildBarcode(),
+            ],
           ),
         ],
       ),
     );
   }
 
-  static pw.Widget _buildHeader(pw.MemoryImage logo) {
-    return pw.Row(
-      mainAxisAlignment: pw.MainAxisAlignment.center,
-      children: [
-        pw.Expanded(
-          child: pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.center,
+  pw.Widget _buildBarcode() {
+    return pw.Container(
+      width: 200,
+      height: 40,
+      margin: const pw.EdgeInsets.only(bottom: 20),
+      child: pw.BarcodeWidget(
+        barcode: pw.Barcode.code128(),
+        data: student.regNo,
+        textStyle: const pw.TextStyle(fontSize: 12),
+      ),
+    );
+  }
+
+  pw.Widget _buildEmergencyContact() {
+    return pw.Container(
+      padding: const pw.EdgeInsets.symmetric(
+        horizontal: 10,
+      ),
+      //margin: const pw.EdgeInsets.only(top: 10), // Added margin
+      decoration: pw.BoxDecoration(
+        color: PdfColors.red50,
+        borderRadius: pw.BorderRadius.circular(8),
+        border: pw.Border.all(color: PdfColors.red800),
+      ),
+      child: pw.Column(
+        children: [
+          pw.Text('IN CASE OF EMERGENCY',
+              style: pw.TextStyle(
+                  font: pw.Font.helveticaBold(), // Use built-in as fallback
+                  fontSize: 10,
+                  color: PdfColors.red800)),
+          pw.SizedBox(height: 5),
+          pw.Text(
+            student.parentName ?? 'Parent/Guardian',
+          ),
+          pw.Text(
+            student.parentPhone ?? 'Contact Number',
+          ),
+        ],
+      ),
+    );
+  }
+
+  pw.Widget _buildFooter() {
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(
+        8,
+      ),
+      margin: const pw.EdgeInsets.only(top: 10),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.center,
+        children: [
+          pw.Text(
+              'This ID Card is a property of Adokweb Solutions. It identifies the bearer whose photograph and other relevant information appear in reverse. it must be in the possession of the bearer at all times and must be shown on demand. Transfer of this card to another person is prohibited and may lead to disciplinary action. If found, please call the emmergency number below or report to the nearest police station.',
+              style: const pw.TextStyle(fontSize: 6, color: mainPDFColor)),
+          pw.SizedBox(height: 5),
+          pw.Text('For verification: https://adokwebsolutions.com.ng/verify',
+              style: const pw.TextStyle(fontSize: 8, color: mainPDFColor)),
+        ],
+      ),
+    );
+  }
+
+  pw.Widget _buildFrontPage(
+      pw.ImageProvider logo, pw.ImageProvider passport, headerFont) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(10),
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: mainPDFColor, width: 3),
+        borderRadius: pw.BorderRadius.circular(15),
+        gradient: pw.LinearGradient(
+          colors: [PdfColors.white, PdfColors.blue50],
+          begin: pw.Alignment.topCenter,
+          end: pw.Alignment.bottomCenter,
+        ),
+      ),
+      child: pw.Column(
+        mainAxisSize: pw.MainAxisSize.min, // Added to prevent overflow
+        children: [
+          _buildHeader(logo, headerFont),
+          pw.Divider(color: mainPDFColor, thickness: 1),
+          pw.Container(
+            height: 18,
+            child: pw.Text('STUDENT ID CARD',
+                style: pw.TextStyle(
+                    font: headerFont[1],
+                    fontWeight: pw.FontWeight.bold,
+                    color: mainPDFColor)),
+          ),
+          pw.Stack(
+            alignment: pw.Alignment.topCenter,
             children: [
-              pw.Text(
-                'Adokweb Solutions Academy',
-                style:
-                    pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 16),
+              pw.Container(
+                height: 100, // Reduced height
+                decoration: pw.BoxDecoration(
+                  color: mainPDFColor,
+                  borderRadius: pw.BorderRadius.circular(10),
+                ),
+                margin: const pw.EdgeInsets.only(bottom: 20),
               ),
-              pw.Text('E-Mail: info@adokwebsolutions.com.ng',
-                  style: pw.TextStyle(fontSize: 10)),
-              pw.Text('Website: https://adokwebsolutions.com.ng',
-                  style: pw.TextStyle(fontSize: 10)),
+              pw.Positioned(
+                top: 10,
+                child: pw.Container(
+                  width: 80, // Reduced size
+                  height: 80,
+                  decoration: pw.BoxDecoration(
+                    shape: pw.BoxShape.circle,
+                    border: pw.Border.all(color: PdfColors.white, width: 5),
+                  ),
+                  child: pw.ClipOval(
+                    child: pw.Image(passport, fit: pw.BoxFit.cover),
+                  ),
+                ),
+              ),
             ],
           ),
+          _buildStudentInfoSection(headerFont),
+          _buildBarcode(),
+        ],
+      ),
+    );
+  }
+
+  pw.Widget _buildHeader(pw.ImageProvider logo, headerFont) {
+    return pw.Row(
+      children: [
+        pw.Image(logo, width: 30, height: 40),
+        pw.SizedBox(width: 5),
+        pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.center,
+          children: [
+            pw.Text('ADOKWEB SOLUTIONS ACADEMY',
+                style: pw.TextStyle(
+                    font: headerFont[1], // Use Oswald Bold
+                    fontSize: 14,
+                    fontWeight: pw.FontWeight.bold,
+                    color: mainPDFColor)),
+            pw.Text('adokwebsolutions.com.ng',
+                style: pw.TextStyle(
+                    //font: headerFont[0], // Use Oswald Regular
+                    fontSize: 8,
+                    color: PdfColors.grey600)),
+            pw.Text('info@adokwebsolutions.com',
+                style: pw.TextStyle(
+                    //font: headerFont[0],
+                    fontSize: 8,
+                    color: PdfColors.grey600)),
+          ],
         ),
       ],
     );
+  }
+
+  Future<pw.Document> _buildPDF() async {
+    final pdf = pw.Document();
+    final http.Client client = http.Client();
+
+    try {
+      final oswaldRegular = pw.Font.ttf(
+        await rootBundle.load('fonts/Oswald/static/Oswald-Regular.ttf'),
+      );
+      final oswaldBold = pw.Font.ttf(
+        await rootBundle.load('fonts/Oswald/static/Oswald-Bold.ttf'),
+      );
+      // Load Google Font
+      final robotoRegular = pw.Font.ttf(
+        await rootBundle.load('fonts/Roboto/static/Roboto-Regular.ttf'),
+      );
+      final robotoBold = pw.Font.ttf(
+        await rootBundle.load('fonts/Roboto/static/Roboto-Bold.ttf'),
+      );
+      // Load images
+      final appLogo = pw.MemoryImage(
+        (await rootBundle.load('app-logo.png')).buffer.asUint8List(),
+      );
+      final hologramPattern = pw.MemoryImage(
+        (await rootBundle.load('hologram_pattern.jpeg')).buffer.asUint8List(),
+      );
+
+      // Load student photo with error handling
+      Uint8List passportBytes;
+      try {
+        if (student.photo != null && student.photo!.isNotEmpty) {
+          final response = await client.get(Uri.parse(student.photo!));
+          passportBytes = response.statusCode == 200
+              ? response.bodyBytes
+              : (await rootBundle.load('profile.jpg')).buffer.asUint8List();
+        } else {
+          throw Exception('No photo available');
+        }
+      } catch (e) {
+        passportBytes =
+            (await rootBundle.load('profile.jpg')).buffer.asUint8List();
+      }
+      final passport = pw.MemoryImage(passportBytes);
+      final headerFont = [oswaldRegular, oswaldBold, robotoRegular, robotoBold];
+
+      pdf.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a6,
+          build: (context) => _buildFrontPage(appLogo, passport, headerFont),
+        ),
+      );
+
+      pdf.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a6,
+          build: (context) => _buildBackPage(hologramPattern, headerFont),
+        ),
+      );
+
+      return pdf;
+    } finally {
+      client.close();
+    }
+  }
+
+  pw.Widget _buildStudentInfoSection(headerFont) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.symmetric(horizontal: 10),
+      child: pw.Table(
+        columnWidths: const {
+          0: pw.FlexColumnWidth(1.5),
+          1: pw.FlexColumnWidth(3),
+        },
+        children: [
+          _buildTableRow('Reg. No:', student.regNo, headerFont),
+          _buildTableRow('Name:', student.name.toUpperCase(), headerFont),
+          _buildTableRow('Class:', student.currentClass, headerFont),
+          _buildTableRow('DOB:', _formatDate(student.dob), headerFont),
+          _buildTableRow('B.G:', student.bloodGroup ?? 'N/A', headerFont),
+        ],
+      ),
+    );
+  }
+
+  pw.TableRow _buildTableRow(String label, String value, headerFont) {
+    return pw.TableRow(
+      children: [
+        pw.Text(label,
+            style: pw.TextStyle(
+                font: headerFont[1], // Use Oswald Bold
+                //fontWeight: pw.FontWeight.bold,
+                color: mainPDFColor)),
+        pw.Text(value,
+            style: pw.TextStyle(font: headerFont[0], color: PdfColors.grey800)),
+      ],
+    );
+  }
+
+  String _formatDate(DateTime? date) {
+    return date != null
+        ? '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}'
+        : 'N/A';
   }
 }

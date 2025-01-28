@@ -115,33 +115,35 @@ class _StudentsScreenState extends State<StudentsScreen> {
           label: Text(Responsive.isMobile(context) ? '' : 'Register Student'),
           icon: Icon(Icons.add),
         ),
-        Row(
-          children: [
-            ElevatedButton(
-              onPressed: () => StudentTemplate.parseStudentExcelFile(),
-              child: Responsive.isMobile(context)
-                  ? const Icon(Icons.download)
-                  : const Row(
-                      children: [
-                        Text('Import'),
-                        Icon(Icons.download),
-                      ],
-                    ),
-            ),
-            const SizedBox(width: 10),
-            ElevatedButton(
-              onPressed: () => StudentTemplate.generateStudentTemplate(),
-              child: Responsive.isMobile(context)
-                  ? const Icon(Icons.upload)
-                  : const Row(
-                      children: [
-                        Text('Download Template'),
-                        Icon(Icons.upload),
-                      ],
-                    ),
-            ),
-          ],
-        ),
+        filteredStudents.isNotEmpty
+            ? Row(
+                children: [
+                  ElevatedButton(
+                    onPressed: () => StudentTemplate.parseStudentExcelFile(),
+                    child: Responsive.isMobile(context)
+                        ? const Icon(Icons.download)
+                        : const Row(
+                            children: [
+                              Text('Import'),
+                              Icon(Icons.download),
+                            ],
+                          ),
+                  ),
+                  const SizedBox(width: 10),
+                  ElevatedButton(
+                    onPressed: () => StudentTemplate.generateStudentTemplate(),
+                    child: Responsive.isMobile(context)
+                        ? const Icon(Icons.upload)
+                        : const Row(
+                            children: [
+                              Text('Download Template'),
+                              Icon(Icons.upload),
+                            ],
+                          ),
+                  ),
+                ],
+              )
+            : Spacer(),
       ],
     );
   }
@@ -173,18 +175,13 @@ class _StudentsScreenState extends State<StudentsScreen> {
               onPressed: () => _viewReportCardDialog(student),
             ),
             IconButton(
-              icon: const Icon(Icons.qr_code, size: 20),
-              tooltip: 'generate QR code',
-              onPressed: () {
-                student.currentClass = className;
-                Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => GenerateQRScreen(
-                              student: student,
-                            )));
-              },
-            ),
+                icon: const Icon(Icons.qr_code, size: 20),
+                tooltip: 'generate ID card',
+                onPressed: () {
+                  student.currentClass = className;
+                  StudentIdCardGenerator(student: student, context: context)
+                      .generateAndPrint();
+                }),
             IconButton(
               icon: const Icon(Icons.qr_code_scanner, size: 20),
               onPressed: () {},
@@ -220,31 +217,36 @@ class _StudentsScreenState extends State<StudentsScreen> {
                       child: MySearchBar(controller: _searchController)),
                 ],
               ),
-              if (filteredStudents.isNotEmpty) _buildActionButtons(),
-              const Divider(
-                thickness: 5.0,
-              ),
-              SingleChildScrollView(
-                child: DataTable(
-                  columns: const [
-                    DataColumn(label: Text('S/N')),
-                    DataColumn(label: Text('Reg No')),
-                    DataColumn(label: Text('Name')),
-                    DataColumn(label: Text('Gender')),
-                    DataColumn(label: Text('Class')),
-                    DataColumn(label: Text('DOB')),
-                    DataColumn(label: Text('Actions')),
-                  ],
-                  rows: filteredStudents
-                      .asMap()
-                      .entries
-                      .map((entry) => _buildDataRow(
-                            entry.value,
-                            entry.key + 1,
-                          ))
-                      .toList(),
+              _buildActionButtons(),
+              const Divider(thickness: 5.0),
+              Expanded(
+                // Add this Expanded widget
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal, // Add horizontal scroll
+                  child: SingleChildScrollView(
+                    // Wrap in another SingleChildScrollView for vertical scroll
+                    child: DataTable(
+                      columns: const [
+                        DataColumn(label: Text('S/N')),
+                        DataColumn(label: Text('Reg No')),
+                        DataColumn(label: Text('Name')),
+                        DataColumn(label: Text('Gender')),
+                        DataColumn(label: Text('Class')),
+                        DataColumn(label: Text('DOB')),
+                        DataColumn(label: Text('Actions')),
+                      ],
+                      rows: filteredStudents
+                          .asMap()
+                          .entries
+                          .map((entry) => _buildDataRow(
+                                entry.value,
+                                entry.key + 1,
+                              ))
+                          .toList(),
+                    ),
+                  ),
                 ),
-              )
+              ),
             ],
           ),
         ),

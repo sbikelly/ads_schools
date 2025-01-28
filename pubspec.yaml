@@ -40,6 +40,7 @@ dependencies:
   fl_chart: ^0.70.2
   flutter_web_qrcode_scanner: ^1.1.1
   qr_bar_code_scanner_dialog: ^0.0.5
+  google_fonts: ^6.2.1
 
 dev_dependencies:
   flutter_launcher_icons: ^0.14.0

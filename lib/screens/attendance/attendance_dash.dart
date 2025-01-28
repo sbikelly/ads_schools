@@ -678,6 +678,13 @@ class AttendanceAdminDashboardState extends State<AttendanceAdminDashboard> {
         _showErrorDialog("Student with id $studentId does not exist.");
         return;
       }
+
+      final student = allStudents.firstWhere(
+        (std) => std.regNo == studentId,
+        orElse: () => Student(
+            name: 'Unknown', regNo: '', currentClass: '', personInfo: {}),
+      );
+
       final isAlreadySignedOut =
           await AttendanceService.checkIfStudentIsSignedOut(
               studentId, selectedDate);
@@ -694,7 +701,8 @@ class AttendanceAdminDashboardState extends State<AttendanceAdminDashboard> {
 
         await AttendanceService.recordAttendance(studentId, isSignIn);
         _showSuccessDialog(
-            "Attendance recorded for student $studentId as sign in");
+            "Attendance recorded for student ${student.name} of class ${student.currentClass} as sign in",
+            student);
       } else {
         if (isAlreadySignedOut) {
           _showErrorDialog("Student is already signed out today");
@@ -708,10 +716,12 @@ class AttendanceAdminDashboardState extends State<AttendanceAdminDashboard> {
 
         await AttendanceService.recordAttendance(studentId, isSignIn);
         _showSuccessDialog(
-            "Attendance recorded for student $studentId as sign out");
+            "Attendance recorded for student ${student.name} of class ${student.currentClass} as sign out",
+            student);
       }
     } catch (e) {
       _showErrorDialog(e.toString());
+      debugPrint("Error: $e");
     }
   }
 
@@ -745,38 +755,145 @@ class AttendanceAdminDashboardState extends State<AttendanceAdminDashboard> {
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text("Error"),
-          content: Text(message),
-          actions: <Widget>[
-            TextButton(
-              child: const Text("OK"),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-          ],
-        );
+        bool isPaused = false;
+
+        Future.delayed(const Duration(seconds: 5), () {
+          if (!isPaused && mounted) {
+            Navigator.of(context).pop();
+          }
+        });
+
+        return StatefulBuilder(builder: (context, setState) {
+          return AlertDialog(
+            title: const Text("Error"),
+            content: Text(message),
+            actions: <Widget>[
+              TextButton(
+                child: Text(isPaused ? "Continue" : "Pause"),
+                onPressed: () {
+                  setState(() => isPaused = !isPaused);
+                  if (isPaused == true) {
+                  } else {
+                    Future.delayed(const Duration(seconds: 5), () {
+                      if (!isPaused && mounted) {
+                        Navigator.of(context).pop();
+                      }
+                    });
+                  }
+                },
+              ),
+              TextButton(
+                child: const Text("Close"),
+                onPressed: () {
+                  isPaused = true;
+                  Navigator.of(context).pop();
+                },
+              ),
+            ],
+          );
+        });
       },
     );
   }
 
-  void _showSuccessDialog(String message) {
+  void _showSuccessDialog(String message, Student student) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text("Success"),
-          content: Text(message),
-          actions: <Widget>[
-            TextButton(
-              child: const Text("OK"),
-              onPressed: () {
-                Navigator.of(context).pop();
+        bool isPaused = false;
+        Future.delayed(const Duration(seconds: 5), () {
+          if (!isPaused && mounted) {
+            Navigator.of(context).pop();
+            _qrScanner.getScannedQrBarCode(
+              context: context,
+              onCode: (code) async {
+                debugPrint("Code scanned = $code");
+                final refinedCode = code?.substring(
+                    58); // removing the default word "Code scanned = https://adokwebsolutions.com.ng/verify?reg=" from the scanned result
+                    debugPrint("Refined code = $refinedCode");
+                await _handleAttendanceRecord(refinedCode!, true);
               },
+            );
+          }
+        });
+
+        return StatefulBuilder(builder: (context, setState) {
+          return AlertDialog(
+            title: Row(
+              children: [
+                const Icon(Icons.check, color: Colors.green),
+                Text("Success", style: TextStyle(color: Colors.green)),
+              ],
             ),
-          ],
-        );
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: CircleAvatar(
+                    radius: 50,
+                    backgroundImage: NetworkImage(student.photo!),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  student.name,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                Text(
+                  "Class: ${student.currentClass}",
+                  style: const TextStyle(fontSize: 14),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  message,
+                  style: const TextStyle(fontSize: 14),
+                )
+              ],
+            ),
+            actions: <Widget>[
+              TextButton(
+                child: Text(isPaused ? "Continue" : "Pause"),
+                onPressed: () {
+                  setState(() => isPaused = !isPaused);
+
+                  if (isPaused == true) {
+                  } else {
+                    Future.delayed(const Duration(seconds: 5), () {
+                      if (!isPaused && mounted) {
+                        Navigator.of(context).pop();
+                        _qrScanner.getScannedQrBarCode(
+                          context: context,
+                          onCode: (code) async {
+                            final refinedCode = code?.substring(
+                                15); // removing the default word "Code scanned = " from the scanned result
+                            await _handleAttendanceRecord(refinedCode!, true);
+                          },
+                        );
+                      }
+                    });
+                  }
+                },
+              ),
+              TextButton(
+                child: const Text("Close"),
+                onPressed: () {
+                  isPaused = true;
+                  Navigator.of(context).pop();
+                  _qrScanner.getScannedQrBarCode(
+                    context: context,
+                    onCode: (code) async {
+                      final refinedCode = code?.substring(
+                          15); // removing the default word "Code scanned = " from the scanned result
+                      await _handleAttendanceRecord(refinedCode!, true);
+                    },
+                  );
+                },
+              ),
+            ],
+          );
+        });
       },
     );
   }

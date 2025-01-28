@@ -10,7 +10,7 @@ class PDFService {
       List<Attendance> attendanceRecords,
       List<Student> allStudents,
       List<SchoolClass> classes,
-     String? selectedClass) async {
+      String? selectedClass) async {
     final pdf = pw.Document();
 
     pdf.addPage(pw.MultiPage(
@@ -18,13 +18,16 @@ class PDFService {
         pw.Header(
           level: 0,
           child: pw.Text('Attendance Report',
-              style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 24)),
+              style:
+                  pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 24)),
         ),
         pw.SizedBox(height: 20),
         pw.Text('Date: ${DateFormat('yyyy-MM-dd').format(date)}',
             style: const pw.TextStyle(fontSize: 14)),
-         if (selectedClass != null && selectedClass!.isNotEmpty)
-        pw.Text('Class: ${classes.firstWhere((element) => element.id == selectedClass).name}', style: const pw.TextStyle(fontSize: 14)),
+        if (selectedClass != null && selectedClass.isNotEmpty)
+          pw.Text(
+              'Class: ${classes.firstWhere((element) => element.id == selectedClass).name}',
+              style: const pw.TextStyle(fontSize: 14)),
         pw.SizedBox(height: 20),
         pw.Table(
           border: pw.TableBorder.all(),
@@ -49,7 +52,10 @@ class PDFService {
               final student = allStudents.firstWhere(
                 (std) => std.regNo == record.studentId,
                 orElse: () => Student(
-                    name: 'Unknown', regNo: '', currentClass: '', personInfo: {}),
+                    name: 'Unknown',
+                    regNo: '',
+                    currentClass: '',
+                    personInfo: {}),
               );
               final schoolClass = classes.firstWhere(
                 (cls) => cls.id == record.currentClass,
@@ -62,24 +68,15 @@ class PDFService {
                 pw.Text(_formatTime(record.signInTime)),
                 pw.Text(_formatTime(record.signOutTime)),
               ]);
-            }).toList()
+            })
           ],
         )
       ],
     ));
 
     return await pdf.save();
-
   }
 
-
- static String _formatTime(DateTime? time) {
-    if (time == null) {
-      return 'N/A';
-    }
-    return DateFormat('HH:mm').format(time);
-  }
-  
   static Future<Uint8List> generateReportCard(
       PdfPageFormat pageFormat, reportCardData) async {
     final pdf = pw.Document();
@@ -491,5 +488,12 @@ class PDFService {
         );
       }).toList(),
     );
+  }
+
+  static String _formatTime(DateTime? time) {
+    if (time == null) {
+      return 'N/A';
+    }
+    return DateFormat('HH:mm').format(time);
   }
 }
