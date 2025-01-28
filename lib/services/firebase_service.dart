@@ -1,5 +1,5 @@
+import 'package:ads_schools/helpers/firebase_helper.dart';
 import 'package:ads_schools/models/models.dart';
-import 'package:ads_schools/util/functions.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
@@ -216,6 +216,25 @@ class FirebaseService {
       return docRef;
     } catch (e) {
       throw Exception('Error adding document: $e');
+    }
+  }
+
+  /// Batch write: Add multiple documents to a collection.
+  static Future<void> batchAddDocuments(
+    String collectionPath,
+    List<Map<String, dynamic>> documents,
+  ) async {
+    final batch = FirebaseFirestore.instance.batch();
+    final collection = FirebaseFirestore.instance.collection(collectionPath);
+
+    for (var doc in documents) {
+      batch.set(collection.doc(), doc);
+    }
+
+    try {
+      await batch.commit();
+    } catch (e) {
+      throw Exception('Batch write failed: $e');
     }
   }
 

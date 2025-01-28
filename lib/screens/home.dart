@@ -1,7 +1,11 @@
+import 'package:ads_schools/helpers/constants.dart';
+import 'package:ads_schools/helpers/firebase_helper.dart';
 import 'package:ads_schools/models/models.dart';
 import 'package:ads_schools/screens/classes_screen.dart';
+import 'package:ads_schools/screens/dashboard/dashboard_home.dart';
+import 'package:ads_schools/screens/subjects.dart';
 import 'package:ads_schools/services/firebase_service.dart';
-import 'package:ads_schools/util/functions.dart';
+import 'package:ads_schools/services/template_service.dart';
 import 'package:ads_schools/widgets/my_widgets.dart';
 import 'package:ads_schools/widgets/report_dialog.dart';
 import 'package:ads_schools/widgets/student_dialog.dart';
@@ -48,11 +52,6 @@ class _HomeScreenState extends State<HomeScreen> {
             child: _buildDataTable(),
           ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showStudentDialog(),
-        label: const Text('Add Student'),
-        icon: const Icon(Icons.add),
       ),
     );
   }
@@ -125,6 +124,46 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildActionButtons() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        ElevatedButton.icon(
+          onPressed: () => _showStudentDialog(),
+          label: Text(Responsive.isMobile(context) ? '' : 'Register Student'),
+          icon: Icon(Icons.add),
+        ),
+        Row(
+          children: [
+            ElevatedButton(
+              onPressed: () => StudentTemplate.parseStudentExcelFile(),
+              child: Responsive.isMobile(context)
+                  ? const Icon(Icons.download)
+                  : const Row(
+                      children: [
+                        Text('Import'),
+                        Icon(Icons.download),
+                      ],
+                    ),
+            ),
+            const SizedBox(width: 10),
+            ElevatedButton(
+              onPressed: () => StudentTemplate.generateStudentTemplate(),
+              child: Responsive.isMobile(context)
+                  ? const Icon(Icons.upload)
+                  : const Row(
+                      children: [
+                        Text('Download Template'),
+                        Icon(Icons.upload),
+                      ],
+                    ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
   DataRow _buildDataRow(Student student, int index) {
     return DataRow(
       cells: [
@@ -175,6 +214,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: MySearchBar(controller: _searchController)),
                 ],
               ),
+              if (filteredStudents.isNotEmpty) _buildActionButtons(),
               const Divider(
                 thickness: 5.0,
               ),
@@ -247,6 +287,16 @@ class _HomeScreenState extends State<HomeScreen> {
         padding: const EdgeInsets.all(16),
         children: [
           QuickActionBtn(
+              icon: Icons.download,
+              title: 'Attendance',
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => MainHome()),
+                );
+              }),
+          QuickActionBtn(
               icon: Icons.add,
               title: 'Add Student',
               onTap: () => _showStudentDialog()),
@@ -259,6 +309,17 @@ class _HomeScreenState extends State<HomeScreen> {
                   context,
                   MaterialPageRoute(
                       builder: (context) => const ClassesScreen()),
+                );
+              }),
+          QuickActionBtn(
+              icon: Icons.download,
+              title: 'Subjects',
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => const SubjectScreen()),
                 );
               }),
           QuickActionBtn(

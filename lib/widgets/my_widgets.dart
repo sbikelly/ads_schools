@@ -1,5 +1,5 @@
-import 'package:ads_schools/util/constants.dart';
-import 'package:ads_schools/util/functions.dart';
+import 'package:ads_schools/helpers/constants.dart';
+import 'package:ads_schools/helpers/file_helper.dart';
 import 'package:flutter/material.dart';
 
 class ErrorDialog extends StatelessWidget {
@@ -109,7 +109,95 @@ class MyAppBar extends StatelessWidget implements PreferredSizeWidget {
             padding: EdgeInsets.all(16.0),
             child: CircularProgressIndicator(color: Colors.white),
           ),
+        IconButton(
+          icon: const Icon(Icons.notifications),
+          onPressed: () {
+            // Handle notifications
+          },
+        ), /*
+        PopupMenuButton<String>(
+          onSelected: (value) {
+            switch (value) {
+              case 'profile':
+                setState(() {
+                  _currentRoute = 'user';
+                });
+                break;
+              case 'change_password':
+                showDialog(
+                  context: context,
+                  builder: (context) => ChangePasswordDialog(),
+                );
+                break;
+              case 'logout':
+                Provider.of<AuthService>(context, listen: false).signOut();
+                Provider.of<NavigatorService>(context, listen: false)
+                    .navigateTo(Routes.loginScreen);
+                break;
+            }
+          },
+          itemBuilder: (context) => [
+            const PopupMenuItem(
+              value: 'profile',
+              child: Row(
+                children: [
+                  Icon(Icons.person),
+                  SizedBox(width: 8),
+                  Text('Profile'),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'change_password',
+              child: Row(
+                children: [
+                  Icon(Icons.lock),
+                  SizedBox(width: 8),
+                  Text('Change Password'),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'logout',
+              child: Row(
+                children: [
+                  Icon(Icons.logout),
+                  SizedBox(width: 8),
+                  Text('Logout'),
+                ],
+              ),
+            ),
+          ],
+          child: Row(
+            children: [
+              Text(
+                /*userModel?.firstName ?? */'No name',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: secondaryColor,
+                  letterSpacing: 3,
+                ),
+              ),
+              const SizedBox(width: 5),/*
+              CircleAvatar(
+                backgroundImage: userModel?.photo != null
+                    ? NetworkImage(userModel!.photo.toString())
+                    : const AssetImage('images/avatar.png') as ImageProvider,
+              ),*/
+              const SizedBox(width: 8),
+            ],
+          ),
+        ),
+      */
       ],
+      leading: Responsive.isMobile(context)
+          ? IconButton(
+              icon: const Icon(Icons.menu),
+              onPressed: () {
+                // _scaffoldKey.currentState?.openDrawer();
+              },
+            )
+          : null,
     );
   }
 }
@@ -152,7 +240,7 @@ class PhotoSelector extends StatelessWidget {
     return GestureDetector(
       onTap: () async {
         try {
-          await FirebaseHelper.selectPhoto((selectedPhotoUrl) {
+          await FileHelper.selectPhoto((selectedPhotoUrl) {
             if (selectedPhotoUrl != null) {
               onPhotoSelected(selectedPhotoUrl);
             } else {

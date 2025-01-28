@@ -1,19 +1,70 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 class Attendance {
+  String? id;
+  String studentId;
+  DateTime? date;
+  String status; // e.g., Signed In, Signed out,
+  DateTime? signInTime;
+  DateTime? signOutTime;
+  String? currentClass;
+  Timestamp? timeStamp;
+
+  Attendance(
+      {this.id,
+      required this.studentId,
+      this.date,
+      required this.status,
+      this.signInTime,
+      this.signOutTime,
+      this.currentClass,
+      this.timeStamp});
+
+  factory Attendance.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return Attendance(
+        id: doc.id,
+        studentId: data['studentId'] ?? '',
+        date:
+            data['date'] != null ? (data['date'] as Timestamp).toDate() : null,
+        status: data['status'] ?? '',
+        signInTime: data['signInTime'] != null
+            ? (data['signInTime'] as Timestamp).toDate()
+            : null,
+        signOutTime: data['signOutTime'] != null
+            ? (data['signOutTime'] as Timestamp).toDate()
+            : null,
+        currentClass: data['currentClass'],
+        timeStamp: data['timeStamp']);
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'currentClass': currentClass,
+      'studentId': studentId,
+      'date': date,
+      'status': status,
+      'signInTime': signInTime,
+      'signOutTime': signOutTime,
+    };
+  }
+}
+
+class AttendanceStatus {
   int? present;
   int? absent;
   int? total;
 
-  Attendance({
+  AttendanceStatus({
     this.present,
     this.absent,
     this.total,
   });
 
   // Factory method to create an Attendance object from Firestore data
-  factory Attendance.fromMap(Map<String, dynamic> data) {
-    return Attendance(
+  factory AttendanceStatus.fromMap(Map<String, dynamic> data) {
+    return AttendanceStatus(
       present: data['present'] ?? 0,
       absent: data['absent'] ?? 0,
       total: data['total'] ?? 0,
@@ -31,7 +82,7 @@ class Attendance {
 }
 
 class PerformanceData {
-  Attendance? attendance;
+  AttendanceStatus? attendance;
   double? overallAverage;
   int? overallPosition;
   String? studentId;
@@ -52,7 +103,7 @@ class PerformanceData {
   // Factory method to create a PerformanceData object from Firestore data
   factory PerformanceData.fromFirestore(Map<String, dynamic> data) {
     return PerformanceData(
-      attendance: Attendance.fromMap(data['attendance']),
+      attendance: AttendanceStatus.fromMap(data['attendance']),
       overallAverage: (data['overallAverage'] ?? 0.0).toDouble(),
       overallPosition:
           data['overallPosition'] is int ? data['overallPosition'] as int : 0,
@@ -68,7 +119,7 @@ class PerformanceData {
   // Convert a Firestore map into a PerformanceData object
   factory PerformanceData.fromMap(Map<String, dynamic> data) {
     return PerformanceData(
-      attendance: Attendance.fromMap(data['attendance']),
+      attendance: AttendanceStatus.fromMap(data['attendance']),
       overallAverage: (data['overallAverage'] ?? 0.0).toDouble(),
       overallPosition:
           data['overallPosition'] is int ? data['overallPosition'] as int : 0,
@@ -95,9 +146,35 @@ class PerformanceData {
   }
 }
 
+class PreviousClass {
+  String? classId;
+  String? sessionId;
+
+  PreviousClass({
+    this.classId,
+    this.sessionId,
+  });
+
+  // Factory method to create an PreviousClass object from Firestore data
+  factory PreviousClass.fromMap(Map<String, dynamic> data) {
+    return PreviousClass(
+      classId: data['classId'] ?? '',
+      sessionId: data['sessionId'] ?? '',
+    );
+  }
+
+  // Convert the PreviousClass object to a Firestore-compatible map
+  Map<String, dynamic> toMap() {
+    return {
+      'classId': classId,
+      'sessionId': sessionId,
+    };
+  }
+}
+
 class SchoolClass {
-  final String id;
-  final String name;
+  late final String id;
+  late final String name;
   final DateTime createdAt;
 
   SchoolClass({
@@ -105,14 +182,7 @@ class SchoolClass {
     required this.name,
     required this.createdAt,
   });
-/*
-  factory SchoolClass.fromFirestore(String id, Map<String, dynamic> data) =>
-      SchoolClass(
-        id: id,
-        name: data['name'],
-        createdAt: (data['createdAt'] as Timestamp).toDate(),
-      );
-*/
+
   factory SchoolClass.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     return SchoolClass(
@@ -163,7 +233,8 @@ class Student {
   final String name;
   String currentClass;
   String? photo;
-  Map<String, dynamic> personalInfo;
+  PreviousClass? previousClass;
+  Map<String, dynamic> personInfo;
   String? gender;
   DateTime? dob;
   String? parentName;
@@ -173,12 +244,13 @@ class Student {
   DateTime? dateJoined;
 
   Student({
+    this.previousClass,
     this.studentId,
     required this.regNo,
     required this.name,
     required this.currentClass,
     this.photo,
-    required this.personalInfo,
+    required this.personInfo,
     this.gender,
     this.dob,
     this.parentName,
@@ -194,9 +266,10 @@ class Student {
       studentId: doc.id,
       regNo: data['regNo'] ?? '', // Default to an empty string if null
       name: data['name'] ?? '',
+      //previousClass: PreviousClass.fromMap(data['previousClass']),
       currentClass: data['currentClass'] ?? '',
-      photo: data['photo'] ?? 'assets/profile.jpg',
-      personalInfo: data['personalInfo'] != null
+      photo: data['photoUrl'],
+      personInfo: data['personalInfo'] != null
           ? Map<String, dynamic>.from(data['personalInfo'] as Map)
           : {},
       gender: data['gender'] ?? '',
@@ -217,7 +290,7 @@ class Student {
         name: map['name'] ?? '',
         currentClass: map['currentClass'] ?? '',
         photo: map['photo'],
-        personalInfo: map['personalInfo'] ?? {},
+        personInfo: map['personalInfo'] ?? {},
         gender: map['gender'] ?? '',
         dob: map['dob'] != null ? (map['dob'] as Timestamp).toDate() : null,
         parentName: map['parentName'] ?? '',
@@ -227,15 +300,17 @@ class Student {
         dateJoined: map['dateJoined'] != null
             ? (map['dateJoined'] as Timestamp).toDate()
             : null,
+        previousClass: PreviousClass.fromMap(map['previousClass']),
       );
 
   Map<String, dynamic> toMap() => {
         'id': studentId,
         'regNo': regNo,
         'name': name,
+        'previousClass': previousClass?.toMap(),
         'currentClass': currentClass,
         'photoUrl': photo,
-        'personalInfo': personalInfo,
+        'personalInfo': personInfo,
         'gender': gender,
         'dob': Timestamp.fromDate(dob ?? DateTime.now()),
         'parentName': parentName,
@@ -247,16 +322,28 @@ class Student {
 }
 
 class Subject {
+  String? id;
   final String name;
+  final String? materialUrl;
 
-  Subject({required this.name});
+  Subject({
+    this.id,
+    required this.name,
+    this.materialUrl,
+  });
 
-  factory Subject.fromFirestore(Map<String, dynamic> data) => Subject(
-        name: data['name'],
-      );
+  factory Subject.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return Subject(
+      id: doc.id,
+      name: data['name'],
+      materialUrl: data['materialUrl'],
+    );
+  }
 
   Map<String, dynamic> toMap() => {
         'name': name,
+        'materialUrl': materialUrl,
       };
 }
 
@@ -286,18 +373,21 @@ class SubjectScore {
     this.remark,
   });
 
-  factory SubjectScore.fromFirestore(Map<String, dynamic> data) => SubjectScore(
-        regNo: data['regNo'],
-        subjectName: data['subjectName'] ?? '',
-        ca1: data['ca1']?.toInt(),
-        ca2: data['ca2']?.toInt(),
-        exam: data['exam']?.toInt(),
-        total: data['total']?.toInt(),
-        average: data['average']?.toDouble(),
-        position: data['position'] ?? '',
-        grade: data['grade'] ?? '',
-        remark: data['remark'] ?? '',
-      );
+  factory SubjectScore.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return SubjectScore(
+      regNo: data['regNo'],
+      subjectName: data['subjectName'] ?? '',
+      ca1: data['ca1']?.toInt(),
+      ca2: data['ca2']?.toInt(),
+      exam: data['exam']?.toInt(),
+      total: data['total']?.toInt(),
+      average: data['average']?.toDouble(),
+      position: data['position'] ?? '',
+      grade: data['grade'] ?? '',
+      remark: data['remark'] ?? '',
+    );
+  }
 
   factory SubjectScore.fromMap(Map<String, dynamic> map) => SubjectScore(
         regNo: map['regNo'] ?? '',
@@ -402,5 +492,82 @@ class TraitsAndSkills {
       'punctuality': punctuality,
       'music': music,
     };
+  }
+}
+
+class UserModel {
+  late String? userId;
+  final String? firstName;
+  final String? otherNames;
+  final String? gender;
+  final String? dob;
+  final String? email;
+  final String? phone;
+  final String? address;
+  final String? role;
+  late final String? photo;
+
+  UserModel(
+      {this.userId,
+      this.firstName,
+      this.otherNames,
+      this.gender,
+      this.dob,
+      this.role,
+      this.email,
+      this.phone,
+      this.address,
+      this.photo});
+
+  factory UserModel.fromFirestore(DocumentSnapshot doc) {
+    Map data = doc.data() as Map<String, dynamic>;
+    return UserModel(
+      firstName: data['firstName'] ?? '',
+      otherNames: data['otherNames'] ?? '',
+      email: data['email'] ?? '',
+      phone: data['phone'] ?? '',
+      address: data['address'] ?? '',
+      dob: data['dob'] ?? '',
+      role: data['role'] ?? '',
+      photo: data['photo'] ?? '',
+      gender: data['gender'] ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      "id": userId,
+      "email": email,
+      "phone": phone,
+      "address": address,
+      "firstName": firstName,
+      "otherNames": otherNames,
+      "gender": gender,
+      "dob": dob,
+      "role": role,
+      "photo": photo,
+    };
+  }
+
+  static UserModel fromSnapshot(
+      DocumentSnapshot<Map<String, dynamic>> snapshot) {
+    try {
+      final data = snapshot.data()!;
+      return UserModel(
+        email: data['email'] as String?,
+        phone: data['phone'] as String?,
+        address: data['address'] as String?,
+        firstName: data['firstName'] as String?,
+        otherNames: data['otherNames'] as String?,
+        gender: data['gender'] as String?,
+        dob: data['dob'] as String?,
+        role: data['role'] as String?,
+        photo: data['photo'] as String?,
+        userId: data['id'] as String?,
+      );
+    } catch (e) {
+      debugPrint('Error parsing user data from snapshot: $e');
+      return UserModel();
+    }
   }
 }
