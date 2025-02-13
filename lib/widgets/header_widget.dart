@@ -9,14 +9,14 @@ class HeaderWidget extends StatelessWidget {
   final String profilePhotoPath;
 
   const HeaderWidget({
-    Key? key,
+    super.key,
     required this.schoolName,
     required this.schoolAddress,
     required this.email,
     required this.website,
     required this.badgePath,
     required this.profilePhotoPath,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

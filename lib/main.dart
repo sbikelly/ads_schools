@@ -1,7 +1,6 @@
 import 'package:ads_schools/error_screen.dart';
 import 'package:ads_schools/helpers/constants.dart';
 import 'package:ads_schools/screens/auth/login_screen.dart';
-import 'package:ads_schools/screens/dashboard/dashboard_home.dart';
 import 'package:ads_schools/services/auth_service.dart';
 import 'package:ads_schools/services/navigator_service.dart';
 import 'package:firebase_core/firebase_core.dart';
