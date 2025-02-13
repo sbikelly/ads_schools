@@ -4,6 +4,7 @@ import 'package:ads_schools/models/models.dart';
 import 'package:ads_schools/screens/attendance/generate_qr_screen.dart';
 import 'package:ads_schools/services/firebase_service.dart';
 import 'package:ads_schools/services/template_service.dart';
+import 'package:ads_schools/widgets/import_review.dart';
 import 'package:ads_schools/widgets/my_widgets.dart';
 import 'package:ads_schools/widgets/report_dialog.dart';
 import 'package:ads_schools/widgets/student_dialog.dart';
@@ -28,8 +29,13 @@ class _StudentsScreenState extends State<StudentsScreen> {
   String? _selectedClassForReport;
   String? _selectedSessionForReport;
   String? _selectedTerm;
-
   String? currentClassId;
+  // Add these to the existing variables
+  bool get isDesktop => MediaQuery.of(context).size.width >= 1100;
+  bool get isMobile => MediaQuery.of(context).size.width < 650;
+  bool get isTablet =>
+      MediaQuery.of(context).size.width >= 650 &&
+      MediaQuery.of(context).size.width < 1100;
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -38,42 +44,11 @@ class _StudentsScreenState extends State<StudentsScreen> {
     );
   }
 
-  Future<dynamic> errorDialog(
-      {required String errorCode, required String message}) {
-    return showDialog(
+  Future<void> errorDialog({message, errorCode}) {
+    return ErrorDialog.show(
       context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return AlertDialog(
-          title: Row(
-            children: [
-              const Icon(Icons.error, color: Colors.red),
-              const SizedBox(width: 8),
-              Text('Error!'),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                message,
-                style: const TextStyle(color: Colors.black54),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Error Code: $errorCode',
-                style: const TextStyle(fontSize: 12, color: Colors.red),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Close'),
-            ),
-          ],
-        );
-      },
+      message: message!,
+      errorCode: errorCode!,
     );
   }
 
@@ -86,23 +61,10 @@ class _StudentsScreenState extends State<StudentsScreen> {
     });
   }
 
-  Future<dynamic> loadingDialog(String? subtitle) {
-    return showDialog(
+  Future<void> loadingDialog(String? subtitle) {
+    return LoadingDialog.show(
       context: context,
-      barrierDismissible: false, // Prevent closing dialog by tapping outside
-      builder: (context) {
-        return AlertDialog(
-          //title: Text('$title ...'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const CircularProgressIndicator(),
-              SizedBox(height: 20),
-              Text('Please wait while we $subtitle ...'),
-            ],
-          ),
-        );
-      },
+      subtitle: subtitle!,
     );
   }
 
@@ -112,40 +74,120 @@ class _StudentsScreenState extends State<StudentsScreen> {
       children: [
         ElevatedButton.icon(
           onPressed: () => _showStudentDialog(),
-          label: Text(Responsive.isMobile(context) ? '' : 'Register Student'),
-          icon: Icon(Icons.add),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.green, // Add green background color
+            foregroundColor: Colors.white, // Add white text/icon color
+          ),
+          label: Text(Responsive.isMobile(context) ? '' : 'New'),
+          icon: Icon(
+            Icons.add,
+            color: Colors.white,
+          ),
         ),
-        filteredStudents.isNotEmpty
-            ? Row(
-                children: [
-                  ElevatedButton(
-                    onPressed: () => StudentTemplate.parseStudentExcelFile(),
-                    child: Responsive.isMobile(context)
-                        ? const Icon(Icons.download)
-                        : const Row(
-                            children: [
-                              Text('Import'),
-                              Icon(Icons.download),
-                            ],
-                          ),
-                  ),
-                  const SizedBox(width: 10),
-                  ElevatedButton(
-                    onPressed: () => StudentTemplate.generateStudentTemplate(),
-                    child: Responsive.isMobile(context)
-                        ? const Icon(Icons.upload)
-                        : const Row(
-                            children: [
-                              Text('Download Template'),
-                              Icon(Icons.upload),
-                            ],
-                          ),
-                  ),
-                ],
-              )
-            : Spacer(),
+        Row(
+          children: [
+            ElevatedButton(
+              onPressed: () async {
+                if (currentClassId == null) {
+                  ErrorWidget('Please select a class to generate QR codes');
+                  errorDialog(
+                    message: 'Please select a class to import students',
+                    errorCode: 'sstd003',
+                  );
+                  return;
+                }
+
+                try {
+                  // Show loading dialog
+                  LoadingDialog.show(
+                      context: context, subtitle: 'Importing students');
+
+                  // Parse Excel file
+                  final importedStudents =
+                      await StudentTemplate.parseStudentExcelFile(
+                    classId: currentClassId!,
+                  );
+
+                  // Close loading dialog
+                  if (mounted) Navigator.pop(context);
+
+                  // Show review dialog
+                  if (mounted) {
+                    showDialog(
+                      context: context,
+                      builder: (context) => ImportReviewDialog(
+                        students: importedStudents,
+                        currentClassId: currentClassId!,
+                        onSaveComplete: _loadStudents,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) Navigator.pop(context);
+                  errorDialog(message: 'Import failed: ${e.toString()}');
+                }
+              },
+              child: Responsive.isMobile(context)
+                  ? const Icon(Icons.download)
+                  : const Row(
+                      children: [
+                        Text('Import'),
+                        Icon(Icons.download),
+                      ],
+                    ),
+            ),
+            const SizedBox(width: 10),
+            ElevatedButton(
+              onPressed: () {
+                // Show loading dialog
+                try {
+                  LoadingDialog.show(
+                      context: context, subtitle: 'Importing students');
+                  StudentTemplate.generateStudentTemplate();
+                  if (mounted) Navigator.pop(context);
+                  _successDialog(
+                    msg: 'Template Successfully Downloaded',
+                  );
+                } catch (e) {
+                  errorDialog(
+                    message: 'Error downloading template',
+                    errorCode: 'dlt001',
+                  );
+                }
+              },
+              child: Responsive.isMobile(context)
+                  ? const Icon(Icons.upload)
+                  : const Row(
+                      children: [
+                        Text('Template'),
+                        Icon(Icons.upload),
+                      ],
+                    ),
+            ),
+          ],
+        )
       ],
     );
+  }
+
+  List<DataColumn> _buildDataColumns() {
+    final columns = [
+      const DataColumn(label: Text('S/N')),
+      const DataColumn(label: Text('I.D No.')),
+      const DataColumn(label: Text('Name')),
+    ];
+
+    // Add optional columns for larger screens
+    if (isDesktop || isTablet) {
+      columns.addAll([
+        const DataColumn(label: Text('Gender')),
+        const DataColumn(label: Text('Department')),
+        const DataColumn(label: Text('DOB')),
+      ]);
+    }
+
+    columns.add(const DataColumn(label: Text('Actions')));
+    return columns;
   }
 
   DataRow _buildDataRow(Student student, int index) {
@@ -167,27 +209,54 @@ class _StudentsScreenState extends State<StudentsScreen> {
         DataCell(Row(
           children: [
             IconButton(
+              color: Colors.blue,
+              tooltip: 'Edit',
               icon: const Icon(Icons.edit, size: 20),
               onPressed: () => _showStudentDialog(student: student),
             ),
             IconButton(
+              color: Colors.green,
+              tooltip: 'View Report Card',
               icon: const Icon(Icons.assessment, size: 20),
               onPressed: () => _viewReportCardDialog(student),
             ),
             IconButton(
                 icon: const Icon(Icons.qr_code, size: 20),
                 tooltip: 'generate ID card',
-                onPressed: () {
-                  student.currentClass = className;
-                  StudentIdCardGenerator(student: student, context: context)
-                      .generateAndPrint();
+                onPressed: () async {
+                  try {
+                    loadingDialog('generate the ID card');
+                    student.currentClass = className;
+
+                    await StudentIdCardGenerator(
+                            student: student, context: context)
+                        .generateAndPrint();
+
+                    if (mounted) {
+                      Navigator.pop(context); // Close loading dialog
+                      _successDialog(msg: 'ID Card Generated Successfully');
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      Navigator.pop(context); // Close loading dialog
+                      errorDialog(
+                          message: e.toString().replaceFirst('Exception: ', ''),
+                          errorCode: 'idc001');
+                    }
+                    debugPrint("Error: $e");
+                  }
                 }),
             IconButton(
               icon: const Icon(Icons.qr_code_scanner, size: 20),
               onPressed: () {},
             ),
             IconButton(
-              icon: const Icon(Icons.delete, size: 20, color: Colors.red),
+              color: Colors.red,
+              tooltip: 'Delete',
+              icon: const Icon(
+                Icons.delete,
+                size: 20,
+              ),
               onPressed: () => _deleteStudent(student),
             ),
           ],
@@ -198,50 +267,58 @@ class _StudentsScreenState extends State<StudentsScreen> {
 
   Widget _buildDataTable() {
     return Padding(
-      padding: const EdgeInsets.all(16.0),
+      padding: EdgeInsets.all(isDesktop ? 16.0 : 8.0),
       child: Card(
         elevation: 4,
         child: Padding(
-          padding: const EdgeInsets.all(8.0),
+          padding: EdgeInsets.all(isDesktop ? 16.0 : 8.0),
           child: Column(
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    flex: 2,
-                    child: _buildViewToggle(),
-                  ),
-                  const Spacer(),
-                  Expanded(
-                      flex: 2,
-                      child: MySearchBar(controller: _searchController)),
-                ],
-              ),
-              _buildActionButtons(),
-              const Divider(thickness: 5.0),
+              // Responsive header
+              if (isDesktop)
+                Row(
+                  children: [
+                    Expanded(flex: 2, child: _buildViewToggle()),
+                    const Spacer(),
+                    Expanded(
+                        flex: 2,
+                        child: MySearchBar(controller: _searchController)),
+                  ],
+                )
+              else
+                Column(
+                  children: [
+                    _buildViewToggle(),
+                    const SizedBox(height: 8),
+                    MySearchBar(controller: _searchController),
+                  ],
+                ),
+
+              // Responsive action buttons
+              if (isDesktop)
+                _buildActionButtons()
+              else
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: _buildActionButtons(),
+                ),
+
+              const Divider(thickness: 2.0),
+
+              // Responsive table
               Expanded(
-                // Add this Expanded widget
                 child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal, // Add horizontal scroll
+                  scrollDirection: Axis.horizontal,
                   child: SingleChildScrollView(
-                    // Wrap in another SingleChildScrollView for vertical scroll
                     child: DataTable(
-                      columns: const [
-                        DataColumn(label: Text('S/N')),
-                        DataColumn(label: Text('Reg No')),
-                        DataColumn(label: Text('Name')),
-                        DataColumn(label: Text('Gender')),
-                        DataColumn(label: Text('Class')),
-                        DataColumn(label: Text('DOB')),
-                        DataColumn(label: Text('Actions')),
-                      ],
+                      horizontalMargin: isDesktop ? 24 : 12,
+                      columnSpacing: isDesktop ? 24 : 16,
+                      columns: _buildDataColumns(),
                       rows: filteredStudents
                           .asMap()
                           .entries
-                          .map((entry) => _buildDataRow(
-                                entry.value,
-                                entry.key + 1,
-                              ))
+                          .map((entry) =>
+                              _buildDataRow(entry.value, entry.key + 1))
                           .toList(),
                     ),
                   ),
@@ -315,10 +392,17 @@ class _StudentsScreenState extends State<StudentsScreen> {
 
     if (confirmed == true) {
       try {
-        await FirebaseService.deleteDocument('students', student.regNo);
-        _showSnackBar('Student deleted successfully');
+        loadingDialog("delete the record");
+        await FirebaseService.deleteDocument('students', student.studentId!);
+
+        if (mounted) Navigator.pop(context);
+        _loadStudents();
+        _successDialog(
+          msg: 'Student deleted successfully',
+        );
       } catch (e) {
-        _showSnackBar('Error deleting student: $e');
+        debugPrint('Error deleting student: $e');
+        errorDialog(message: e.toString().replaceFirst(' ', ''));
       }
     }
   }
@@ -344,11 +428,15 @@ class _StudentsScreenState extends State<StudentsScreen> {
         classes = fetchedClasses;
       });
     } catch (e) {
-      _showSnackBar('Error fetching classes: $e');
+      debugPrint('Error fetching classes: $e');
+      errorDialog(
+        message: 'Error fetching classes',
+        errorCode: 'ld002',
+      );
     }
   }
 
-// Load initial data
+  // Load initial data
   Future<void> _loadInitialData() async {
     setState(() {
       isLoading = true; // Start loading
@@ -360,7 +448,11 @@ class _StudentsScreenState extends State<StudentsScreen> {
         _loadStudents(),
       ]);
     } catch (e) {
-      _showSnackBar('Error loading data: $e');
+      debugPrint('Error loading initial data: $e');
+      errorDialog(
+        message: 'Error loading initial data',
+        errorCode: 'ld001',
+      );
     } finally {
       setState(() {
         isLoading = false; // Stop loading
@@ -392,7 +484,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
         classId: _selectedClassForReport!,
         sessionId: _selectedSessionForReport!,
         termId: _selectedTerm!,
-        regNo: student.regNo,
+        studentId: student.regNo,
       );
       Navigator.pop(context);
       loadingDialog('fetching traits and skills grades');
@@ -448,7 +540,11 @@ class _StudentsScreenState extends State<StudentsScreen> {
     } catch (error) {
       // Close the last dialog in case of error
       Navigator.pop(context);
-      errorDialog(message: 'Result not available', errorCode: 'str001');
+      debugPrint('Error loading report card: $error');
+      errorDialog(
+        message: 'Error loading report card',
+        errorCode: 'ld003',
+      );
     }
   }
 
@@ -479,8 +575,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
         // Check if the current class is null (i.e., "All Students" is selected)
         if (currentClassId == null) {
           errorDialog(
-            errorCode: '404',
-            message: 'Please select a class before adding a student...',
+            message: 'Please select a class to add a student',
+            errorCode: 'sstd002',
           );
           return; // Exit the function if no class is selected
         }
@@ -505,9 +601,18 @@ class _StudentsScreenState extends State<StudentsScreen> {
         await _loadStudents();
       }
     } catch (e) {
-      errorDialog(errorCode: 'sstd001', message: 'showing student dialog');
+      debugPrint('Error opening student dialog: $e');
+      errorDialog(
+        message: 'Error opening student dialog',
+        errorCode: 'sstd001',
+      );
       throw Exception('error opening student dialog: $e');
     }
+  }
+
+  void _successDialog({msg, additionalContent}) {
+    SuccessDialog.show(
+        context: context, message: msg, additionalContent: additionalContent);
   }
 
   // Handle report card viewing
@@ -597,7 +702,10 @@ class _StudentsScreenState extends State<StudentsScreen> {
                     student: student,
                   );
                 } else {
-                  _showSnackBar('Please select all fields');
+                  errorDialog(
+                    message: 'Please select class, session, and term',
+                    errorCode: 'vrc001',
+                  );
                 }
               },
               child: const Text('View Report'),

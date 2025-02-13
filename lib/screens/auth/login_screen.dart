@@ -1,5 +1,5 @@
 import 'package:ads_schools/helpers/constants.dart';
-import 'package:ads_schools/screens/home.dart';
+import 'package:ads_schools/screens/dashboard/dashboard_home.dart';
 import 'package:ads_schools/services/auth_service.dart';
 import 'package:ads_schools/services/navigator_service.dart';
 import 'package:ads_schools/services/services.dart';
@@ -49,7 +49,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       ? _buildRightPanel()
                       : Row(
                           children: [
-                            _buildLeftPanel(),
+                            //_buildLeftPanel(),
+                            Spacer(),
                             _buildRightPanel(),
                           ],
                         );
@@ -85,11 +86,14 @@ class _LoginScreenState extends State<LoginScreen> {
           color: Colors.grey[700],
           borderRadius: BorderRadius.circular(10),
         ),
-        child: const Center(
-          child: Text(
-            "Sign In Anonymously",
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
+        child: Center(
+          child: _isSigning
+              ? const CircularProgressIndicator(color: Colors.white)
+              : const Text(
+                  "Sign In Anonymously",
+                  style: TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.bold),
+                ),
         ),
       ),
     );
@@ -136,7 +140,7 @@ class _LoginScreenState extends State<LoginScreen> {
             bottomLeft: Radius.circular(50.0),
           ),
           image: const DecorationImage(
-            image: AssetImage('backgrounds/app-banner.png'),
+            image: AssetImage('badge.png' /*'backgrounds/app-banner.png'*/),
             fit: BoxFit.cover,
             opacity: 0.7,
           ),
@@ -187,7 +191,7 @@ class _LoginScreenState extends State<LoginScreen> {
         padding: const EdgeInsets.all(30.0),
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.7),
-          borderRadius: Responsive.isMobile(context)
+          borderRadius: Responsive.isDesktop(context)
               ? const BorderRadius.all(Radius.circular(50.0))
               : const BorderRadius.only(
                   topRight: Radius.circular(50.0),
@@ -435,64 +439,31 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
       User? user = await authService.signInAnonymously();
-      // Fetch the user document from Firestore
-      //final userInfo = await _userService.getById(user!.uid);
-      // Handle successful anonymous sign-in
+
       if (user != null) {
-        /*
-        String? role = userInfo.role;
-        String? firstName = userInfo.firstName;
-        String? otherNames = userInfo.otherNames;
-        String? userEmail = userInfo.email;
-        String? photo = userInfo.photo;
-
-        // Save the role, userID, firstName, otherNames, email, and photo to SharedPreferences
-        SharedPreferences prefs = await SharedPreferences.getInstance();
-        await prefs.setString('role', role!);
-        await prefs.setString('userID', user.uid);
-        await prefs.setString('firstName', firstName!);
-        await prefs.setString(
-            'otherNames', otherNames ?? ''); // In case otherNames is null
-        await prefs.setString('email', userEmail!);
-        await prefs.setString('photo', photo ?? ''); // In case photoUrl is null
-
-        // Navigate to the appropriate dashboard based on the role
-        switch (role) {
-          case 'Admin':
-            Provider.of<NavigatorService>(context, listen: false)
-                .navigateTo(Routes.adminDashboard);
-            break;
-          case 'Student':
-            Provider.of<NavigatorService>(context, listen: false)
-                .navigateTo(Routes.studentDashboard);
-            break;
-          default:
-            _handleError("User's Role not found");
-            break;
-        }
-        */
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => HomeScreen()),
+        // Use pushAndRemoveUntil to clear the navigation stack
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const MainHome()),
+          (route) => false, // Removes all previous routes
         );
       } else {
-        _handleError("User data not found");
+        _handleError("Anonymous sign in failed");
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('User data not found'),
+            content: Text('Sign in failed'),
             behavior: SnackBarBehavior.floating,
             showCloseIcon: true,
           ),
         );
       }
     } catch (e) {
-      _handleError("Invalid Username/Password");
-      setState(() {
-        _errorMessage = "Failed to sign in anonymously.";
-      });
+      _handleError("Failed to sign in anonymously");
     } finally {
-      setState(() {
-        _isSigning = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isSigning = false;
+        });
+      }
     }
   }
 
@@ -504,19 +475,26 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
-      await authService.signIn(_emailController.text, _passwordController.text);
-      // Handle successful sign-in
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => HomeScreen()),
-      );
+      User? user = await authService.signIn(
+          _emailController.text, _passwordController.text);
+
+      if (user != null) {
+        // Use pushAndRemoveUntil to clear the navigation stack
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const MainHome()),
+          (route) => false, // Removes all previous routes
+        );
+      } else {
+        _handleError("Invalid credentials");
+      }
     } catch (e) {
-      setState(() {
-        _errorMessage = "Failed to sign in. Please try again.";
-      });
+      _handleError("Failed to sign in. Please try again.");
     } finally {
-      setState(() {
-        _isSigning = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isSigning = false;
+        });
+      }
     }
   }
 }

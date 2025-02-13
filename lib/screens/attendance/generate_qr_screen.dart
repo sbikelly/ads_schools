@@ -16,24 +16,10 @@ class StudentIdCardGenerator {
   StudentIdCardGenerator({required this.student, required this.context});
 
   Future<void> generateAndPrint() async {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator()),
+    final pdf = await _buildPDF();
+    await Printing.layoutPdf(
+      onLayout: (PdfPageFormat format) async => pdf.save(),
     );
-
-    try {
-      final pdf = await _buildPDF();
-      await Printing.layoutPdf(
-        onLayout: (PdfPageFormat format) async => pdf.save(),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to generate PDF')),
-      );
-    } finally {
-      Navigator.of(context).pop();
-    }
   }
 
   pw.Widget _buildBackPage(pw.ImageProvider hologramPattern, headerFont) {
@@ -67,7 +53,7 @@ class StudentIdCardGenerator {
             mainAxisAlignment: pw.MainAxisAlignment.center,
             crossAxisAlignment: pw.CrossAxisAlignment.center,
             children: [
-              pw.SizedBox(height: 20),
+              pw.SizedBox(height: 10),
               pw.Text('SCAN TO MARK ATTENDANCE/VERIFY',
                   style: pw.TextStyle(
                       font: headerFont[0], // Use Oswald Regular
@@ -76,20 +62,21 @@ class StudentIdCardGenerator {
                       fontWeight: pw.FontWeight.bold)),
               pw.Container(
                 width: 150,
-                height: 150,
-                margin: const pw.EdgeInsets.all(20),
+                height: 130,
+                margin: const pw.EdgeInsets.all(5),
                 child: pw.BarcodeWidget(
                   barcode: pw.Barcode.qrCode(
                     errorCorrectLevel: pw.BarcodeQRCorrectionLevel.high,
                   ),
                   data:
-                      'https://adokwebsolutions.com.ng/verify?reg=${student.regNo}',
+                      'https://adokwebsolutions.com.ng/verify?reg=${student.studentId}',
                   drawText: false,
                 ),
               ),
               _buildFooter(),
               _buildEmergencyContact(),
               _buildBarcode(),
+              _buildSignatureSection(holder: false),
             ],
           ),
         ],
@@ -100,12 +87,12 @@ class StudentIdCardGenerator {
   pw.Widget _buildBarcode() {
     return pw.Container(
       width: 200,
-      height: 40,
+      height: 20,
       margin: const pw.EdgeInsets.only(bottom: 20),
       child: pw.BarcodeWidget(
         barcode: pw.Barcode.code128(),
-        data: student.regNo,
-        textStyle: const pw.TextStyle(fontSize: 12),
+        data: student.studentId!,
+        textStyle: const pw.TextStyle(fontSize: 6),
       ),
     );
   }
@@ -113,9 +100,9 @@ class StudentIdCardGenerator {
   pw.Widget _buildEmergencyContact() {
     return pw.Container(
       padding: const pw.EdgeInsets.symmetric(
-        horizontal: 10,
+        horizontal: 8,
       ),
-      //margin: const pw.EdgeInsets.only(top: 10), // Added margin
+      margin: const pw.EdgeInsets.only(bottom: 5), // Added margin
       decoration: pw.BoxDecoration(
         color: PdfColors.red50,
         borderRadius: pw.BorderRadius.circular(8),
@@ -126,15 +113,19 @@ class StudentIdCardGenerator {
           pw.Text('IN CASE OF EMERGENCY',
               style: pw.TextStyle(
                   font: pw.Font.helveticaBold(), // Use built-in as fallback
-                  fontSize: 10,
+                  fontSize: 8,
                   color: PdfColors.red800)),
-          pw.SizedBox(height: 5),
-          pw.Text(
-            student.parentName ?? 'Parent/Guardian',
-          ),
-          pw.Text(
-            student.parentPhone ?? 'Contact Number',
-          ),
+          pw.SizedBox(height: 3),
+          pw.Text(student.parentName ?? 'Parent/Guardian',
+              style: pw.TextStyle(
+                font: pw.Font.helvetica(), // Use built-in as fallback
+                fontSize: 8,
+              )),
+          pw.Text(student.parentPhone ?? 'Contact Number',
+              style: pw.TextStyle(
+                font: pw.Font.helvetica(), // Use built-in as fallback
+                fontSize: 8,
+              )),
         ],
       ),
     );
@@ -145,16 +136,18 @@ class StudentIdCardGenerator {
       padding: const pw.EdgeInsets.all(
         8,
       ),
-      margin: const pw.EdgeInsets.only(top: 10),
+      //margin: const pw.EdgeInsets.only(top: 5),
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.center,
         children: [
+          pw.Text('For verification: https://adokwebsolutions.com.ng/verify',
+              textAlign: pw.TextAlign.center,
+              style: const pw.TextStyle(fontSize: 8, color: mainPDFColor)),
+          pw.SizedBox(height: 5),
           pw.Text(
               'This ID Card is a property of Adokweb Solutions. It identifies the bearer whose photograph and other relevant information appear in reverse. it must be in the possession of the bearer at all times and must be shown on demand. Transfer of this card to another person is prohibited and may lead to disciplinary action. If found, please call the emmergency number below or report to the nearest police station.',
+              textAlign: pw.TextAlign.justify,
               style: const pw.TextStyle(fontSize: 6, color: mainPDFColor)),
-          pw.SizedBox(height: 5),
-          pw.Text('For verification: https://adokwebsolutions.com.ng/verify',
-              style: const pw.TextStyle(fontSize: 8, color: mainPDFColor)),
         ],
       ),
     );
@@ -163,7 +156,7 @@ class StudentIdCardGenerator {
   pw.Widget _buildFrontPage(
       pw.ImageProvider logo, pw.ImageProvider passport, headerFont) {
     return pw.Container(
-      padding: const pw.EdgeInsets.all(10),
+      padding: const pw.EdgeInsets.fromLTRB(10, 10, 10, 2),
       decoration: pw.BoxDecoration(
         border: pw.Border.all(color: mainPDFColor, width: 3),
         borderRadius: pw.BorderRadius.circular(15),
@@ -180,7 +173,7 @@ class StudentIdCardGenerator {
           pw.Divider(color: mainPDFColor, thickness: 1),
           pw.Container(
             height: 18,
-            child: pw.Text('STUDENT ID CARD',
+            child: pw.Text('STAFF ID CARD',
                 style: pw.TextStyle(
                     font: headerFont[1],
                     fontWeight: pw.FontWeight.bold,
@@ -195,7 +188,7 @@ class StudentIdCardGenerator {
                   color: mainPDFColor,
                   borderRadius: pw.BorderRadius.circular(10),
                 ),
-                margin: const pw.EdgeInsets.only(bottom: 20),
+                margin: const pw.EdgeInsets.only(bottom: 10),
               ),
               pw.Positioned(
                 top: 10,
@@ -214,6 +207,9 @@ class StudentIdCardGenerator {
             ],
           ),
           _buildStudentInfoSection(headerFont),
+          pw.SizedBox(height: 10), // Space before signature
+          _buildSignatureSection(holder: true),
+          pw.SizedBox(height: 5),
           _buildBarcode(),
         ],
       ),
@@ -228,18 +224,18 @@ class StudentIdCardGenerator {
         pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.center,
           children: [
-            pw.Text('ADOKWEB SOLUTIONS ACADEMY',
+            pw.Text('Federal College Of Education,',
                 style: pw.TextStyle(
                     font: headerFont[1], // Use Oswald Bold
                     fontSize: 14,
                     fontWeight: pw.FontWeight.bold,
                     color: mainPDFColor)),
-            pw.Text('adokwebsolutions.com.ng',
+            pw.Text('P.M.B 1027, Pankshin, Plateau State,',
                 style: pw.TextStyle(
                     //font: headerFont[0], // Use Oswald Regular
-                    fontSize: 8,
+                    fontSize: 10,
                     color: PdfColors.grey600)),
-            pw.Text('info@adokwebsolutions.com',
+            pw.Text('Tel: 07020094201',
                 style: pw.TextStyle(
                     //font: headerFont[0],
                     fontSize: 8,
@@ -314,35 +310,85 @@ class StudentIdCardGenerator {
     }
   }
 
+  pw.Widget _buildSignatureSection({required bool holder}) {
+    return pw.Container(
+      alignment: holder ? pw.Alignment.centerRight : pw.Alignment.center,
+      child: pw.Column(
+        mainAxisSize: pw.MainAxisSize.min,
+        crossAxisAlignment:
+            holder ? pw.CrossAxisAlignment.end : pw.CrossAxisAlignment.center,
+        children: [
+          pw.Container(
+            width: 150,
+            decoration: const pw.BoxDecoration(
+              border: pw.Border(bottom: pw.BorderSide(color: mainPDFColor)),
+            ),
+            child: holder
+                ? pw.Text("Signature",
+                    textAlign: pw.TextAlign.center,
+                    style: const pw.TextStyle(
+                        fontSize: 7, color: PdfColors.grey500))
+                : pw.Text("Signature",
+                    textAlign: pw.TextAlign.center,
+                    style: const pw.TextStyle(
+                        fontSize: 7, color: PdfColors.grey800)),
+          ),
+          pw.Text(holder ? "Holder's Signature" : "Registrar",
+              textAlign: holder ? pw.TextAlign.right : pw.TextAlign.center,
+              style: const pw.TextStyle(fontSize: 8, color: mainPDFColor)),
+        ],
+      ),
+    );
+  }
+
   pw.Widget _buildStudentInfoSection(headerFont) {
     return pw.Container(
-      padding: const pw.EdgeInsets.symmetric(horizontal: 10),
+      //padding: const pw.EdgeInsets.symmetric(horizontal: 10),
       child: pw.Table(
         columnWidths: const {
           0: pw.FlexColumnWidth(1.5),
           1: pw.FlexColumnWidth(3),
         },
         children: [
-          _buildTableRow('Reg. No:', student.regNo, headerFont),
-          _buildTableRow('Name:', student.name.toUpperCase(), headerFont),
-          _buildTableRow('Class:', student.currentClass, headerFont),
-          _buildTableRow('DOB:', _formatDate(student.dob), headerFont),
-          _buildTableRow('B.G:', student.bloodGroup ?? 'N/A', headerFont),
+          _buildTableRow('Name:', student.name.toUpperCase(), headerFont,
+              underline: true),
+          _buildTableRow('I.D No.:', student.regNo, headerFont,
+              underline: true),
+          _buildTableRow('Dept.:', student.currentClass, headerFont,
+              underline: true),
+          _buildTableRow('D.O.B:', _formatDate(student.dob), headerFont,
+              underline: true),
+          _buildTableRow('B.G:', student.bloodGroup ?? 'N/A', headerFont,
+              underline: true),
         ],
       ),
     );
   }
 
-  pw.TableRow _buildTableRow(String label, String value, headerFont) {
+  pw.TableRow _buildTableRow(String label, String value, headerFont,
+      {bool underline = false}) {
     return pw.TableRow(
       children: [
-        pw.Text(label,
-            style: pw.TextStyle(
-                font: headerFont[1], // Use Oswald Bold
-                //fontWeight: pw.FontWeight.bold,
-                color: mainPDFColor)),
-        pw.Text(value,
-            style: pw.TextStyle(font: headerFont[0], color: PdfColors.grey800)),
+        pw.Container(
+            decoration: underline
+                ? pw.BoxDecoration(
+                    border: pw.Border(
+                        bottom: pw.BorderSide(
+                            color: PdfColors.grey500, width: 0.5)))
+                : null,
+            child: pw.Text(label,
+                style: pw.TextStyle(font: headerFont[1], color: mainPDFColor))),
+        pw.Container(
+          decoration: underline
+              ? pw.BoxDecoration(
+                  border: pw.Border(
+                      bottom:
+                          pw.BorderSide(color: PdfColors.grey500, width: 0.5)))
+              : null,
+          child: pw.Text(value,
+              style:
+                  pw.TextStyle(font: headerFont[0], color: PdfColors.grey800)),
+        ),
       ],
     );
   }

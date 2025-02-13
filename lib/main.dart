@@ -76,8 +76,8 @@ class MyApp extends StatelessWidget {
             ),
           ),
         ),
-        home: MainHome(),
-        // const LoginScreen(), // Change to AuthWrapper for conditional navigation
+        home: //MainHome(),
+        const LoginScreen(), // Change to AuthWrapper for conditional navigation
         debugShowCheckedModeBanner: false,
       ),
     );

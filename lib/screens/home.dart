@@ -136,7 +136,8 @@ class _HomeScreenState extends State<HomeScreen> {
         Row(
           children: [
             ElevatedButton(
-              onPressed: () => StudentTemplate.parseStudentExcelFile(),
+              onPressed: () =>
+                  StudentTemplate.parseStudentExcelFile(classId: ''),
               child: Responsive.isMobile(context)
                   ? const Icon(Icons.download)
                   : const Row(
@@ -480,7 +481,7 @@ class _HomeScreenState extends State<HomeScreen> {
         classId: _selectedClassForReport!,
         sessionId: _selectedSessionForReport!,
         termId: _selectedTerm!,
-        regNo: student.regNo,
+        studentId: student.regNo,
       );
       Navigator.pop(context);
       loadingDialog('fetching traits and skills grades');

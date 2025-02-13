@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:excel/excel.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_xlsio/xlsio.dart';
 import 'package:universal_html/html.dart' as html;
 
@@ -11,183 +12,156 @@ import '../models/models.dart';
 class StudentTemplate {
   static Future<String> generateStudentTemplate() async {
     try {
-      // Create a new Excel document
-      final Workbook workbook = Workbook();
-      final Worksheet sheet = workbook.worksheets[0];
+      final workbook = Workbook();
+      final sheet = workbook.worksheets[0];
 
-      // Set headers
-      sheet.getRangeByIndex(1, 1).setText('Reg. Number');
-      sheet.getRangeByIndex(1, 2).setText('Name');
-      sheet.getRangeByIndex(1, 3).setText('Current Class');
-      sheet.getRangeByIndex(1, 4).setText('Photo URL');
-      sheet.getRangeByIndex(1, 5).setText('Gender');
-      sheet.getRangeByIndex(1, 6).setText('Date of Birth (YYYY-MM-DD)');
-      sheet.getRangeByIndex(1, 7).setText('Parent Name');
-      sheet.getRangeByIndex(1, 8).setText('Parent Phone');
-      sheet.getRangeByIndex(1, 9).setText('Address');
-      sheet.getRangeByIndex(1, 10).setText('Blood Group');
-      sheet.getRangeByIndex(1, 11).setText('Date Joined (YYYY-MM-DD)');
-      sheet.getRangeByIndex(1, 12).setText('Person Info Key 1');
-      sheet.getRangeByIndex(1, 13).setText('Person Info Value 1');
-      sheet.getRangeByIndex(1, 14).setText('Person Info Key 2');
-      sheet.getRangeByIndex(1, 15).setText('Person Info Value 2');
+      // Set headers with clear labels and data formats
+      final headers = {
+        'A1': 'Reg. Number',
+        'B1': 'Name',
+        'C1': 'Gender (Male/Female)',
+        'D1': 'Date of Birth (YYYY-MM-DD)',
+        'E1': 'Parent Name',
+        'F1': 'Parent Phone',
+        'G1': 'Address',
+        'H1': 'Blood Group',
+        'I1': 'Date Joined (YYYY-MM-DD)'
+      };
 
-      // Add example row
-      sheet.getRangeByIndex(2, 1).setText('ST12345'); // Example Reg. Number
-      sheet.getRangeByIndex(2, 2).setText('John Doe'); // Example Name
-      sheet.getRangeByIndex(2, 3).setText('Class 5'); // Example Current Class
-      sheet
-          .getRangeByIndex(2, 4)
-          .setText('assets/photo.jpg'); // Example Photo URL
-      sheet.getRangeByIndex(2, 5).setText('Male'); // Example Gender
-      sheet.getRangeByIndex(2, 6).setText('2010-05-12'); // Example DOB
-      sheet.getRangeByIndex(2, 7).setText('Jane Doe'); // Example Parent Name
-      sheet
-          .getRangeByIndex(2, 8)
-          .setText('+2347012345678'); // Example Parent Phone
-      sheet
-          .getRangeByIndex(2, 9)
-          .setText('123 Example Street'); // Example Address
-      sheet.getRangeByIndex(2, 10).setText('O+'); // Example Blood Group
-      sheet.getRangeByIndex(2, 11).setText('2022-09-01'); // Example Date Joined
-      sheet.getRangeByIndex(2, 12).setText('Height'); // Example Person Info Key
-      sheet
-          .getRangeByIndex(2, 13)
-          .setText('160 cm'); // Example Person Info Value
-      sheet.getRangeByIndex(2, 14).setText('Weight'); // Example Person Info Key
-      sheet
-          .getRangeByIndex(2, 15)
-          .setText('50 kg'); // Example Person Info Value
+      headers.forEach((cell, value) {
+        sheet.getRangeByName(cell).setText(value);
+      });
 
-      // Auto-fit columns
-      for (int col = 1; col <= 15; col++) {
-        sheet.autoFitColumn(col);
+      // Example data
+      final sampleData = {
+        'A2': 'ST12345',
+        'B2': 'John Doe',
+        'C2': 'Male',
+        'D2': '2010-05-12',
+        'E2': 'Parent Name',
+        'F2': '+2341234567890',
+        'G2': '123 Sample Street',
+        'H2': 'O+',
+        'I2': '2023-09-01'
+      };
+
+      sampleData.forEach((cell, value) {
+        sheet.getRangeByName(cell).setText(value);
+      });
+
+      // Auto-fit all columns
+      for (int i = 1; i <= headers.length; i++) {
+        sheet.autoFitColumn(i);
       }
 
-      // Save the document
-      final List<int> bytes = workbook.saveAsStream();
+      final bytes = workbook.saveAsStream();
       workbook.dispose();
 
-      if (kIsWeb) {
-        // Download for web platform
-        final blob = html.Blob([bytes]);
-        final url = html.Url.createObjectUrlFromBlob(blob);
-        final anchor = html.AnchorElement(href: url)
-          ..setAttribute('download', 'student_upload_template.xlsx')
-          ..click();
-        html.Url.revokeObjectUrl(url);
-        return anchor.toString();
-      } else {
-        // Save file for other platforms
-        final String? path = await FilePicker.platform.getDirectoryPath();
-        if (path != null) {
-          final File file = File('$path/student_upload_template.xlsx');
-          await file.writeAsBytes(bytes);
-          debugPrint('Template saved at: ${file.path}');
-        }
-        return path ?? '';
-      }
+      return await _saveFile(bytes, 'student_upload_template.xlsx');
     } catch (e) {
       debugPrint('Error generating template: $e');
-      throw Exception('Failed to generate template: $e');
+
+      ErrorWidget(e);
+      throw Exception('Failed to generate student template: $e');
     }
   }
 
-  static Future<List<Student>> parseStudentExcelFile() async {
+  static Future<List<Student>> parseStudentExcelFile(
+      {required String classId}) async {
     try {
-      // Pick file with validation
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['xlsx', 'xls'],
-        withData: true, // Ensure we get the file data for web
-      );
-
-      if (result == null || result.files.isEmpty) {
-        throw Exception('No file selected');
-      }
-
-      // Get file bytes
-      final bytes = kIsWeb
-          ? result.files.first.bytes!
-          : await File(result.files.single.path!).readAsBytes();
-
+      final bytes = await _pickAndGetFileBytes();
       final excel = Excel.decodeBytes(bytes);
-      var students = <Student>[];
 
-      // Validate if Excel file has any sheets
       if (excel.tables.isEmpty) {
         throw Exception('Excel file has no sheets');
       }
 
       final sheet = excel.tables[excel.tables.keys.first]!;
+      final students = <Student>[];
 
-      // Validate minimum required columns
-      if (sheet.maxColumns < 3) {
-        throw Exception('Invalid template format - missing required columns');
-      }
-
-      // Process rows
+      // Skip header row
       for (var row = 1; row < sheet.maxRows; row++) {
-        var rowData = sheet.row(row);
-
-        // Skip empty rows
-        if (rowData.isEmpty || rowData[0]?.value == null) continue;
+        final rowData = sheet.row(row);
+        if (_isEmptyRow(rowData)) continue;
 
         try {
-          final regNo = rowData[0]?.value.toString().trim() ?? '';
-          final name = rowData[1]?.value.toString().trim() ?? '';
-          final currentClass = rowData[2]?.value.toString().trim() ?? '';
-          final photo = rowData[3]?.value.toString();
-          final gender = rowData[4]?.value.toString();
-          final dob = rowData[5]?.value != null
-              ? DateTime.tryParse(rowData[5]!.value.toString())
-              : null;
-          final parentName = rowData[6]?.value.toString();
-          final parentPhone = rowData[7]?.value.toString();
-          final address = rowData[8]?.value.toString();
-          final bloodGroup = rowData[9]?.value.toString();
-          final dateJoined = rowData[10]?.value != null
-              ? DateTime.tryParse(rowData[10]!.value.toString())
-              : null;
-
-          // Parse dynamic personal info
-          final personInfo = <String, dynamic>{};
-          for (var i = 11; i < sheet.maxColumns; i += 2) {
-            final key = rowData[i]?.value.toString();
-            final value = rowData[i + 1]?.value.toString();
-            if (key != null && value != null) {
-              personInfo[key] = value;
-            }
-          }
-
-          students.add(Student(
-            regNo: regNo,
-            name: name,
-            currentClass: currentClass,
-            photo: photo,
-            gender: gender,
-            dob: dob,
-            parentName: parentName,
-            parentPhone: parentPhone,
-            address: address,
-            bloodGroup: bloodGroup,
-            dateJoined: dateJoined,
-            personInfo: personInfo,
-          ));
+          students.add(_parseStudentRow(rowData, classId));
         } catch (e) {
           debugPrint('Warning: Error parsing row $row: $e');
+          ErrorWidget('Warning: Error parsing row $row: $e');
         }
       }
 
       if (students.isEmpty) {
-        throw Exception('No valid student data found in the file');
+        ErrorWidget('No valid student data found');
+        throw Exception('No valid student data found');
       }
 
-      debugPrint('Successfully parsed ${students.length} students from Excel');
       return students;
     } catch (e) {
-      debugPrint('Error parsing Excel file: $e');
-      throw Exception('Failed to parse Excel file: $e');
+      ErrorWidget('Error parsing student Excel file: $e');
+      debugPrint('Error parsing student Excel file: $e');
+      throw Exception('Failed to parse student data: $e');
+    }
+  }
+
+  static bool _isEmptyRow(List<Data?> rowData) {
+    return rowData.isEmpty || rowData[0]?.value == null;
+  }
+
+  static DateTime? _parseDate(dynamic value) {
+    if (value == null) return null;
+    return DateTime.tryParse(value.toString());
+  }
+
+  static Student _parseStudentRow(List<Data?> rowData, String classId) {
+    return Student(
+      regNo: rowData[0]?.value?.toString().trim() ?? '',
+      name: rowData[1]?.value?.toString().trim() ?? '',
+      gender: rowData[2]?.value?.toString() ?? 'Male',
+      dob: _parseDate(rowData[3]?.value) ?? DateTime.now(),
+      parentName: rowData[4]?.value?.toString(),
+      parentPhone: rowData[5]?.value?.toString(),
+      address: rowData[6]?.value?.toString(),
+      bloodGroup: rowData[7]?.value?.toString() ?? 'O+',
+      dateJoined: _parseDate(rowData[8]?.value) ?? DateTime.now(),
+      currentClass: classId,
+      personInfo: {},
+    );
+  }
+
+  static Future<List<int>> _pickAndGetFileBytes() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['xlsx', 'xls'],
+      withData: true,
+    );
+
+    if (result == null || result.files.isEmpty) {
+      throw Exception('No file selected');
+    }
+
+    return kIsWeb
+        ? result.files.first.bytes!
+        : await File(result.files.single.path!).readAsBytes();
+  }
+
+  static Future<String> _saveFile(List<int> bytes, String filename) async {
+    if (kIsWeb) {
+      final blob = html.Blob([bytes]);
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      final anchor = html.AnchorElement(href: url)
+        ..setAttribute('download', filename)
+        ..click();
+      html.Url.revokeObjectUrl(url);
+      return url;
+    } else {
+      final path = await FilePicker.platform.getDirectoryPath();
+      if (path == null) throw Exception('No directory selected');
+
+      final file = File('$path/$filename');
+      await file.writeAsBytes(bytes);
+      return file.path;
     }
   }
 }
@@ -305,7 +279,7 @@ class SubjectTemplate {
 
           if (regNo.isNotEmpty) {
             scores.add(SubjectScore(
-              regNo: regNo,
+              studentId: regNo,
               ca1: ca1,
               ca2: ca2,
               exam: exam,
@@ -331,7 +305,7 @@ class SubjectTemplate {
   static bool validateScores(List<SubjectScore> scores) {
     for (var score in scores) {
       // Check if registration number is empty
-      if (score.regNo.isEmpty) {
+      if (score.studentId.isEmpty) {
         debugPrint('Invalid registration number found');
         return false;
       }
@@ -341,7 +315,7 @@ class SubjectTemplate {
           (score.ca2 != null && (score.ca2! < 0 || score.ca2! > 20)) ||
           (score.exam != null && (score.exam! < 0 || score.exam! > 60))) {
         debugPrint(
-            'Invalid score range found for registration number: ${score.regNo}');
+            'Invalid score range found for registration number: ${score.studentId}');
         return false;
       }
     }
@@ -494,7 +468,7 @@ class TraitsTemplate {
 
           if (regNo.isNotEmpty) {
             traits.add(TraitsAndSkills(
-              regNo: regNo,
+              studentId: regNo,
               creativity: creativity,
               sports: sports,
               attentiveness: attentiveness,
@@ -526,7 +500,7 @@ class TraitsTemplate {
   static bool validateScores(List<TraitsAndSkills> traits) {
     for (var trait in traits) {
       // Check if registration number is empty
-      if (trait.regNo.isEmpty) {
+      if (trait.studentId.isEmpty) {
         debugPrint('Invalid registration number found');
         return false;
       }
@@ -549,7 +523,7 @@ class TraitsTemplate {
               (trait.punctuality! < 0 || trait.punctuality! > 5)) ||
           (trait.music != null && (trait.music! < 0 || trait.music! > 5))) {
         debugPrint(
-            'Invalid score range found for registration number: ${trait.regNo}');
+            'Invalid score range found for registration number: ${trait.studentId}');
         return false;
       }
     }

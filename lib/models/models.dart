@@ -348,7 +348,7 @@ class Subject {
 }
 
 class SubjectScore {
-  final String regNo;
+  final String studentId;
   final int? ca1;
   final int? ca2;
   final int? exam;
@@ -361,7 +361,7 @@ class SubjectScore {
   final String? subjectName;
 
   SubjectScore({
-    required this.regNo,
+    required this.studentId,
     this.subjectName,
     this.ca1,
     this.ca2,
@@ -376,7 +376,7 @@ class SubjectScore {
   factory SubjectScore.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     return SubjectScore(
-      regNo: data['regNo'],
+      studentId: data['studentId'],
       subjectName: data['subjectName'] ?? '',
       ca1: data['ca1']?.toInt(),
       ca2: data['ca2']?.toInt(),
@@ -390,7 +390,7 @@ class SubjectScore {
   }
 
   factory SubjectScore.fromMap(Map<String, dynamic> map) => SubjectScore(
-        regNo: map['regNo'] ?? '',
+        studentId: map['studentId'] ?? '',
         subjectName: map['subjectName'] ?? '',
         ca1: map['ca1']?.toInt() ?? 0,
         ca2: map['ca2']?.toInt() ?? 0,
@@ -402,7 +402,7 @@ class SubjectScore {
         remark: map['remark'] ?? '',
       );
   Map<String, dynamic> toMap() => {
-        "regNo": regNo,
+        "studentId": studentId,
         'subjectName': subjectName,
         "ca1": ca1 ?? '',
         "ca2": ca2 ?? '',
@@ -438,7 +438,7 @@ class Term {
 }
 
 class TraitsAndSkills {
-  final String regNo;
+  final String studentId;
   final int? creativity;
   final int? sports;
   final int? attentiveness;
@@ -450,7 +450,7 @@ class TraitsAndSkills {
   final int? music;
 
   TraitsAndSkills({
-    required this.regNo,
+    required this.studentId,
     this.creativity,
     this.sports,
     this.attentiveness,
@@ -463,7 +463,7 @@ class TraitsAndSkills {
   });
   factory TraitsAndSkills.fromFirestore(Map<String, dynamic> data) {
     return TraitsAndSkills(
-      regNo: data['regNo'] ?? '',
+      studentId: data['studentId'] ?? '',
       creativity: data['creativity'] != null ? data['creativity'] as int : null,
       sports: data['sports'] != null ? data['sports'] as int : null,
       attentiveness:
@@ -481,7 +481,7 @@ class TraitsAndSkills {
 
   Map<String, dynamic> toMap() {
     return {
-      'regNo': regNo,
+      'studentId': studentId,
       'creativity': creativity,
       'sports': sports,
       'attentiveness': attentiveness,

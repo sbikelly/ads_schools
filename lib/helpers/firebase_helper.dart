@@ -104,7 +104,7 @@ class FirebaseHelper {
           classId: classId,
           sessionId: sessionId,
           termId: termId,
-          regNo: student.regNo,
+          studentId: student.studentId!,
         );
 
         if (scores.isNotEmpty) {
@@ -121,7 +121,7 @@ class FirebaseHelper {
           );
 
           final performanceRef =
-              termRef.collection('studentPerformance').doc(student.regNo);
+              termRef.collection('studentPerformance').doc(student.studentId);
           batch.set(performanceRef, performanceData.toMap());
         } else {
           debugPrint('No scores found for student: ${student.name}');
@@ -216,7 +216,7 @@ class FirebaseHelper {
     final scores = scoresSnapshot.docs.map((doc) {
       final data = doc.data();
       return SubjectScore(
-        regNo: doc.id,
+        studentId: doc.id,
         ca1: data['ca1'],
         ca2: data['ca2'],
         exam: data['exam'],
@@ -235,7 +235,7 @@ class FirebaseHelper {
     for (int i = 0; i < scores.length; i++) {
       int pos = i + 1;
       scores[i].position = pos.toString();
-      final docRef = scoresRef.doc(scores[i].regNo);
+      final docRef = scoresRef.doc(scores[i].studentId);
       batch.update(docRef, {'position': scores[i].position});
     }
 
@@ -298,7 +298,7 @@ class FirebaseHelper {
     required String classId,
     required String sessionId,
     required String termId,
-    required String regNo,
+    required String studentId,
   }) async {
     final List<SubjectScore> studentScores = [];
     try {
@@ -325,7 +325,7 @@ class FirebaseHelper {
         final scoresRef = subjectsRef
             .doc(subjectDoc.id)
             .collection('scores')
-            .where('regNo', isEqualTo: regNo);
+            .where('studentId', isEqualTo: studentId);
         // Fetch the student's score for this subject
         final scoresSnapshot = await scoresRef
             .get(); //FirebaseService.getWhere(collection: '$collection/${subjectDoc.id}/scores', queryFields: {'scores': regNo});
@@ -334,7 +334,7 @@ class FirebaseHelper {
           final data = scoreDoc.data();
           // Convert Firestore document to SubjectScore
           final score = SubjectScore(
-            regNo: data['regNo'],
+            studentId: data['studentId'],
             subjectName: subject.name, // Use subject name from Subject model
             ca1: data['ca1'] ?? 0,
             ca2: data['ca2'] ?? 0,
@@ -393,13 +393,13 @@ class FirebaseHelper {
         classId: classId,
         sessionId: sessionId,
         termId: termId,
-        regNo: student.regNo,
+        studentId: student.studentId!,
       );
 
       // Fetch traits and skills scores
       final traitsAndSkillsDoc = await FirebaseService.getDocumentById(
         'classes/$classId/sessions/$sessionId/terms/$termId/skillsAndTraits',
-        student.regNo,
+        student.studentId!,
       );
 
       final traitsAndSkills = TraitsAndSkills.fromFirestore(
@@ -415,7 +415,7 @@ class FirebaseHelper {
           .collection('terms')
           .doc(termId)
           .collection('studentPerformance')
-          .doc(student.regNo)
+          .doc(student.studentId)
           .get();
 
       PerformanceData? performanceData;

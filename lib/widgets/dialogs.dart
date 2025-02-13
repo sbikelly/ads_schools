@@ -2,6 +2,7 @@ import 'package:ads_schools/helpers/firebase_helper.dart';
 import 'package:ads_schools/models/models.dart';
 import 'package:ads_schools/services/firebase_service.dart';
 import 'package:ads_schools/services/template_service.dart';
+import 'package:ads_schools/widgets/my_widgets.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
@@ -69,7 +70,6 @@ class _AddSubjectsToClassDialogState extends State<AddSubjectsToClassDialog> {
   final List<Subject> _existingSubjects = [];
   bool _isLoading = true;
   bool _isSubmitting = false;
-
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
@@ -77,7 +77,7 @@ class _AddSubjectsToClassDialogState extends State<AddSubjectsToClassDialog> {
       content: SizedBox(
         width: MediaQuery.of(context).size.width * 0.5,
         child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
+            ? Center(child: CircularProgressIndicator())
             : _availableSubjects.isEmpty
                 ? const Text('No subjects available to select.')
                 : Column(
@@ -129,10 +129,30 @@ class _AddSubjectsToClassDialogState extends State<AddSubjectsToClassDialog> {
     );
   }
 
+  Future<void> errorDialog({message, errorCode}) {
+    return ErrorDialog.show(
+      context: context,
+      message: message!,
+      errorCode: errorCode!,
+    );
+  }
+
   @override
   void initState() {
     super.initState();
     _loadAvailableAndExistingSubjects();
+  }
+
+  Future<void> loadingDialog(String? subtitle) {
+    return LoadingDialog.show(
+      context: context,
+      subtitle: subtitle!,
+    );
+  }
+
+  void successDialog({msg, additionalContent}) {
+    SuccessDialog.show(
+        context: context, message: msg, additionalContent: additionalContent);
   }
 
   Future<void> _loadAvailableAndExistingSubjects() async {
@@ -288,12 +308,32 @@ class _CreateClassDialogState extends State<CreateClassDialog> {
     super.dispose();
   }
 
+  Future<void> errorDialog({message, errorCode}) {
+    return ErrorDialog.show(
+      context: context,
+      message: message!,
+      errorCode: errorCode!,
+    );
+  }
+
   @override
   void initState() {
     super.initState();
     if (widget.classToEdit != null) {
       _className.text = widget.classToEdit!.name;
     }
+  }
+
+  Future<void> loadingDialog(String? subtitle) {
+    return LoadingDialog.show(
+      context: context,
+      subtitle: subtitle!,
+    );
+  }
+
+  void successDialog({msg, additionalContent}) {
+    SuccessDialog.show(
+        context: context, message: msg, additionalContent: additionalContent);
   }
 
   void _addSessionField() {
@@ -405,6 +445,7 @@ class _CreateClassDialogState extends State<CreateClassDialog> {
       final firebaseService = FirebaseService();
 
       if (widget.classToEdit != null) {
+        loadingDialog('Update the class');
         // Handle edit class
         await firebaseService.updateClass(
           widget.classToEdit!.id,
@@ -414,6 +455,7 @@ class _CreateClassDialogState extends State<CreateClassDialog> {
         );
       } else {
         // Create new class
+        loadingDialog('setup the class');
         final classId =
             await firebaseService.createClass(_className.text.trim());
         await firebaseService.setupClassStructure(
@@ -424,11 +466,10 @@ class _CreateClassDialogState extends State<CreateClassDialog> {
       }
 
       if (mounted) Navigator.of(context).pop(true);
+      successDialog(msg: 'class created successfully');
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        errorDialog(message: 'Error creating class', errorCode: e.toString());
       }
     } finally {
       setState(() => _isLoading = false);
@@ -561,7 +602,7 @@ class _SkillsAndTraitsDialogState extends State<SkillsAndTraitsDialog> {
             final scores = snapshot.data!.docs.map((doc) {
               final data = doc.data() as Map<String, dynamic>;
               return TraitsAndSkills(
-                regNo: doc.id,
+                studentId: doc.id,
                 creativity: data['creativity'],
                 sports: data['sports'],
                 attentiveness: data['attentiveness'],
@@ -618,7 +659,7 @@ class _SkillsAndTraitsDialogState extends State<SkillsAndTraitsDialog> {
                         ],
                         rows: scores.map((score) {
                           return DataRow(cells: [
-                            DataCell(Text(score.regNo)),
+                            DataCell(Text(score.studentId)),
                             DataCell(Text(score.creativity?.toString() ?? '-')),
                             DataCell(Text(score.sports?.toString() ?? '-')),
                             DataCell(

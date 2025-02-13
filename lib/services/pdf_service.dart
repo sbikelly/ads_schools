@@ -13,68 +13,152 @@ class PDFService {
       String? selectedClass) async {
     final pdf = pw.Document();
 
-    pdf.addPage(pw.MultiPage(
-      build: (pw.Context context) => [
-        pw.Header(
-          level: 0,
-          child: pw.Text('Attendance Report',
-              style:
-                  pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 24)),
-        ),
-        pw.SizedBox(height: 20),
-        pw.Text('Date: ${DateFormat('yyyy-MM-dd').format(date)}',
-            style: const pw.TextStyle(fontSize: 14)),
-        if (selectedClass != null && selectedClass.isNotEmpty)
-          pw.Text(
-              'Class: ${classes.firstWhere((element) => element.id == selectedClass).name}',
-              style: const pw.TextStyle(fontSize: 14)),
-        pw.SizedBox(height: 20),
-        pw.Table(
-          border: pw.TableBorder.all(),
-          columnWidths: const {
-            0: pw.FixedColumnWidth(100),
-            1: pw.FixedColumnWidth(100),
-            2: pw.FixedColumnWidth(80),
-            3: pw.FixedColumnWidth(80)
-          },
-          children: [
-            pw.TableRow(children: [
-              pw.Text('Student Name',
-                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-              pw.Text('Class',
-                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-              pw.Text('Sign In Time',
-                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-              pw.Text('Sign Out Time',
-                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-            ]),
-            ...attendanceRecords.map((record) {
-              final student = allStudents.firstWhere(
-                (std) => std.regNo == record.studentId,
-                orElse: () => Student(
-                    name: 'Unknown',
-                    regNo: '',
-                    currentClass: '',
-                    personInfo: {}),
-              );
-              final schoolClass = classes.firstWhere(
-                (cls) => cls.id == record.currentClass,
-                orElse: () => SchoolClass(
-                    id: 'Unknown', name: 'Unknown', createdAt: DateTime.now()),
-              );
-              return pw.TableRow(children: [
-                pw.Text(student.name),
-                pw.Text(schoolClass.name),
-                pw.Text(_formatTime(record.signInTime)),
-                pw.Text(_formatTime(record.signOutTime)),
-              ]);
-            })
-          ],
-        )
-      ],
-    ));
+    // Load school logo
+    final logoImage = pw.MemoryImage(
+      (await rootBundle.load('assets/badge.png')).buffer.asUint8List(),
+    );
 
-    return await pdf.save();
+    final presentCount = attendanceRecords.length;
+    final totalStudents = allStudents
+        .where((student) =>
+            selectedClass == null || student.currentClass == selectedClass)
+        .length;
+    final absentCount = totalStudents - presentCount;
+    final attendancePercentage = totalStudents > 0
+        ? (presentCount / totalStudents * 100).toStringAsFixed(1)
+        : '0';
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(40),
+        build: (pw.Context context) => [
+          // Header with logo and school name
+          pw.Header(
+            level: 0,
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Image(logoImage, width: 60),
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.center,
+                  children: [
+                    pw.Text('FEDERAL COLLEGE OF EDUCATION, PANKSHIN',
+                        style: pw.TextStyle(
+                            fontWeight: pw.FontWeight.bold, fontSize: 20)),
+                    pw.Text('Daily Attendance Report',
+                        style: pw.TextStyle(
+                            fontSize: 16, color: PdfColors.grey700)),
+                  ],
+                ),
+                pw.SizedBox(width: 60), // Balance the logo
+              ],
+            ),
+          ),
+
+          pw.SizedBox(height: 20),
+
+          // Report summary section
+          pw.Container(
+            padding: const pw.EdgeInsets.all(10),
+            decoration: pw.BoxDecoration(
+              color: PdfColors.grey100,
+              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+            ),
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text(
+                    'Date: ${DateFormat('EEEE, MMMM d, yyyy').format(date)}',
+                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                if (selectedClass != null && selectedClass.isNotEmpty)
+                  pw.Text(
+                      'Class: ${classes.firstWhere((element) => element.id == selectedClass).name}',
+                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+              ],
+            ),
+          ),
+
+          pw.SizedBox(height: 15),
+
+          // Attendance statistics
+          pw.Container(
+            padding: const pw.EdgeInsets.all(10),
+            decoration: pw.BoxDecoration(
+              border: pw.Border.all(color: PdfColors.grey300),
+              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+            ),
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
+              children: [
+                _buildStatBox('Present', presentCount, PdfColors.green700),
+                _buildStatBox('Absent', absentCount, PdfColors.red700),
+                _buildStatBox('Total', totalStudents, PdfColors.blue700),
+                _buildStatBox('Attendance', '$attendancePercentage%',
+                    PdfColors.purple700),
+              ],
+            ),
+          ),
+
+          pw.SizedBox(height: 20),
+
+          // Attendance records table
+          pw.Table(
+            border: pw.TableBorder.all(color: PdfColors.grey400),
+            columnWidths: const {
+              0: pw.FlexColumnWidth(4),
+              1: pw.FlexColumnWidth(2),
+              2: pw.FlexColumnWidth(1),
+              3: pw.FlexColumnWidth(1),
+            },
+            children: [
+              // Table header
+              pw.TableRow(
+                decoration: pw.BoxDecoration(color: PdfColors.grey200),
+                children: [
+                  _buildTableHeader('Name'),
+                  _buildTableHeader('Class'),
+                  _buildTableHeader('Sign In'),
+                  _buildTableHeader('Sign Out'),
+                ],
+              ),
+              // Table rows
+              ...attendanceRecords.map((record) {
+                final student = allStudents.firstWhere(
+                  (std) => std.studentId == record.studentId,
+                  orElse: () => Student(
+                      name: 'Unknown',
+                      regNo: '',
+                      currentClass: '',
+                      personInfo: {}),
+                );
+                final schoolClass =
+                    classes.firstWhere((cls) => cls.id == student.currentClass);
+                String studentClass = schoolClass.name;
+                return pw.TableRow(
+                  children: [
+                    _buildTableCell(student.name),
+                    _buildTableCell(studentClass),
+                    _buildTableCell(_formatTime(record.signInTime)),
+                    _buildTableCell(_formatTime(record.signOutTime)),
+                  ],
+                );
+              })
+            ],
+          ),
+
+          // Footer
+          pw.Footer(
+            padding: const pw.EdgeInsets.only(top: 20),
+            trailing: pw.Text(
+                'Generated on ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())}',
+                style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey)),
+          ),
+        ],
+      ),
+    );
+
+    return pdf.save();
   }
 
   static Future<Uint8List> generateReportCard(
@@ -370,6 +454,32 @@ class PDFService {
     );
   }
 
+  static pw.Widget _buildStatBox(String label, dynamic value, PdfColor color) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(8),
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: color),
+        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+      ),
+      child: pw.Column(
+        children: [
+          pw.Text(
+            value.toString(),
+            style: pw.TextStyle(
+              color: color,
+              fontSize: 20,
+              fontWeight: pw.FontWeight.bold,
+            ),
+          ),
+          pw.Text(
+            label,
+            style: const pw.TextStyle(fontSize: 12),
+          ),
+        ],
+      ),
+    );
+  }
+
   static pw.Widget _buildStudentInfoSection(Student student) {
     return pw.Row(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -459,6 +569,27 @@ class PDFService {
           },
         ),
       ],
+    );
+  }
+
+  static pw.Widget _buildTableCell(String text) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(6),
+      child: pw.Text(
+        text,
+        textAlign: pw.TextAlign.center,
+      ),
+    );
+  }
+
+  static pw.Widget _buildTableHeader(String text) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(6),
+      child: pw.Text(
+        text,
+        style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+        textAlign: pw.TextAlign.center,
+      ),
     );
   }
 

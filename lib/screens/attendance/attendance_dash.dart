@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:ads_schools/models/models.dart';
 import 'package:ads_schools/services/firebase_service.dart';
 import 'package:ads_schools/services/pdf_service.dart';
+import 'package:ads_schools/widgets/my_widgets.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
@@ -30,9 +31,13 @@ class AttendanceAdminDashboardState extends State<AttendanceAdminDashboard> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Attendance Admin Dashboard')),
+      appBar: MyAppBar(
+        isLoading: isLoading,
+      ),
       body: isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? LoadingDialog(
+              subtitle: 'fetch attendance records',
+            )
           : errorMessage != null
               ? Center(child: Text(errorMessage!))
               : Padding(
@@ -53,29 +58,169 @@ class AttendanceAdminDashboardState extends State<AttendanceAdminDashboard> {
     _initializeData();
   }
 
+  void successDialog(String message, Student student, bool isSignIn) {
+    showDialog(
+      context: context,
+      barrierDismissible: false, // Prevent dismissing by tapping outside
+      builder: (BuildContext context) {
+        bool isPaused = false;
+        const int autoCloseSeconds = 5;
+
+        // Auto-close timer
+        void startAutoCloseTimer() {
+          Future.delayed(Duration(seconds: autoCloseSeconds), () {
+            if (!isPaused && mounted) {
+              Navigator.of(context).pop();
+              _startNextScan(isSignIn);
+            }
+          });
+        }
+
+        startAutoCloseTimer();
+        final schoolClass =
+            classes.firstWhere((cls) => cls.id == student.currentClass);
+        String studentClass = schoolClass.name;
+
+        return StatefulBuilder(builder: (context, setState) {
+          return AlertDialog(
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+            title: Row(
+              children: [
+                Icon(
+                  isSignIn ? Icons.login_rounded : Icons.logout_rounded,
+                  color: isSignIn ? Colors.green : Colors.orange,
+                  size: 28,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    "Success",
+                    style: TextStyle(
+                      color: isSignIn ? Colors.green : Colors.orange,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: isSignIn ? Colors.green : Colors.orange,
+                        width: 5,
+                      ),
+                    ),
+                    child: CircleAvatar(
+                      radius: 80,
+                      backgroundImage:
+                          student.photo != null && student.photo!.isNotEmpty
+                              ? NetworkImage(student.photo!)
+                              : const AssetImage('assets/default_avatar.png')
+                                  as ImageProvider,
+                      onBackgroundImageError: (e, s) {
+                        debugPrint('Error loading image: $e');
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 15),
+                  Text(
+                    student.name.toUpperCase(),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    "Class: $studentClass",
+                    style: const TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey,
+                        fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: isSignIn
+                          ? Colors.green.withOpacity(0.1)
+                          : Colors.orange.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      message,
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: isSignIn ? Colors.green : Colors.orange,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: <Widget>[
+              TextButton.icon(
+                icon: Icon(isPaused ? Icons.play_arrow : Icons.pause),
+                label: Text(isPaused ? "Continue" : "Pause"),
+                onPressed: () {
+                  setState(() => isPaused = !isPaused);
+                  if (!isPaused) {
+                    startAutoCloseTimer();
+                  }
+                },
+              ),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.close),
+                label: const Text("Close"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isSignIn ? Colors.green : Colors.orange,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () {
+                  isPaused = true;
+                  Navigator.of(context).pop();
+                  _startNextScan(isSignIn);
+                },
+              ),
+            ],
+            actionsPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          );
+        });
+      },
+    );
+  }
+
   Widget _buildAttendanceDetails(List<Attendance> attendanceRecords) {
     return ListView.builder(
       itemCount: attendanceRecords.length,
       itemBuilder: (context, index) {
         final record = attendanceRecords[index];
         final student = allStudents.firstWhere(
-          (std) => std.regNo == record.studentId,
+          (std) => std.studentId == record.studentId,
           orElse: () => Student(
               name: 'Unknown', regNo: '', currentClass: '', personInfo: {}),
         );
-        final schoolClass = classes.firstWhere(
-          (cls) => cls.id == record.currentClass,
-          orElse: () => SchoolClass(
-              id: 'Unknown', name: 'Unknown', createdAt: DateTime.now()),
-        );
+        final schoolClass =
+            classes.firstWhere((cls) => cls.id == student.currentClass);
+        String studentClass = schoolClass.name;
 
         return Card(
           child: ListTile(
             title: Text(student.name,
                 style:
                     const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            subtitle:
-                Text('Status: ${record.status} | Class: ${schoolClass.name}'),
+            subtitle: Text('Status: ${record.status} | Class: $studentClass'),
             trailing: Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
@@ -183,7 +328,7 @@ class AttendanceAdminDashboardState extends State<AttendanceAdminDashboard> {
       ),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return LoadingDialog(subtitle: 'fetch attendance records');
         }
         if (snapshot.hasError) {
           debugPrint(
@@ -343,20 +488,55 @@ class AttendanceAdminDashboardState extends State<AttendanceAdminDashboard> {
 
   Widget _buildQrSignInButton() {
     return ElevatedButton.icon(
-      onPressed: () {
-        _qrScanner.getScannedQrBarCode(
-          context: context,
-          onCode: (code) async {
-            final refinedCode = code?.substring(
-                15); // removing the default word "Code scanned = " from the scanned result
-            await _handleAttendanceRecord(refinedCode!, true);
-          },
-        );
+      onPressed: () async {
+        try {
+          _qrScanner.getScannedQrBarCode(
+            context: context,
+            onCode: (code) async {
+              if (code == null || code.isEmpty) {
+                _showErrorDialog(message: "No QR code detected");
+                return;
+              }
+              debugPrint("Code scanned = $code");
+
+              // Check if code contains the expected prefix
+              const prefix =
+                  "Code scanned = https://adokwebsolutions.com.ng/verify?reg=";
+              if (!code.startsWith(prefix)) {
+                _showErrorDialog(message: "Invalid QR code format");
+                return;
+              }
+
+              try {
+                // Extract student ID from the QR code
+                final refinedCode = code.substring(prefix.length);
+                if (refinedCode.isEmpty) {
+                  _showErrorDialog(message: "Invalid student ID");
+                  return;
+                }
+
+                await _handleAttendanceRecord(refinedCode, true);
+              } catch (e) {
+                _showErrorDialog(
+                    message: "Error processing QR code: ${e.toString()}");
+              }
+            },
+          );
+        } catch (e) {
+          _showErrorDialog(message: "Error accessing camera: ${e.toString()}");
+        }
       },
-      label: const Text('Sign In'),
+      style: ElevatedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      ),
+      label: const Text(
+        'Sign In',
+        style: TextStyle(fontWeight: FontWeight.bold),
+      ),
       icon: const Icon(
         Icons.qr_code,
         color: Colors.green,
+        size: 24,
       ),
     );
   }
@@ -364,15 +544,48 @@ class AttendanceAdminDashboardState extends State<AttendanceAdminDashboard> {
   Widget _buildQrSignOutButton() {
     return ElevatedButton.icon(
       onPressed: () {
-        _qrScanner.getScannedQrBarCode(
-          context: context,
-          onCode: (code) async {
-            final refinedCode = code?.substring(
-                15); // removing the default word "Code scanned = " from the scanned result
-            await _handleAttendanceRecord(refinedCode!, false);
-          },
-        );
+        try {
+          _qrScanner.getScannedQrBarCode(
+            context: context,
+            onCode: (code) async {
+              if (code == null || code.isEmpty) {
+                _showErrorDialog(message: "No QR code detected");
+                return;
+              }
+              debugPrint("Code scanned = $code");
+
+              // Check if code contains the expected prefix
+              const prefix =
+                  "Code scanned = https://adokwebsolutions.com.ng/verify?reg=";
+              if (!code.startsWith(prefix)) {
+                _showErrorDialog(message: "Invalid QR code format");
+                return;
+              }
+
+              try {
+                // Extract student ID from the QR code
+                final refinedCode = code.substring(prefix.length);
+                if (refinedCode.isEmpty) {
+                  _showErrorDialog(message: "Invalid student ID");
+                  return;
+                }
+
+                await _handleAttendanceRecord(refinedCode, false);
+              } catch (e) {
+                debugPrint('Error processing QR code: ${e.toString()}');
+                _showErrorDialog(
+                    message: "Error processing QR code: ${e.toString()}");
+              }
+            },
+          );
+        } catch (e) {
+          debugPrint('Error accessing camera: ${e.toString()}');
+          _showErrorDialog(message: "Error accessing camera: ${e.toString()}");
+        }
       },
+      style: ElevatedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      ),
       label: const Text('Sign Out'),
       icon: const Icon(
         Icons.qr_code_2,
@@ -604,6 +817,7 @@ class AttendanceAdminDashboardState extends State<AttendanceAdminDashboard> {
           selectedDate, attendanceRecords, allStudents, classes, selectedClass);
       _downloadPdf(pdfBytes, 'attendance_report.pdf');
     } catch (e) {
+      _showErrorDialog(message: "Error generating PDF: ${e.toString()}");
       setState(() => errorMessage = 'Error generating PDF: $e');
     }
   }
@@ -672,55 +886,34 @@ class AttendanceAdminDashboardState extends State<AttendanceAdminDashboard> {
   }
 
   Future<void> _handleAttendanceRecord(String studentId, bool isSignIn) async {
+    if (!mounted) return;
+
     try {
-      final studentExists = await AttendanceService.studentExists(studentId);
-      if (!studentExists) {
-        _showErrorDialog("Student with id $studentId does not exist.");
-        return;
-      }
+      LoadingDialog.show(
+        context: context,
+        subtitle: isSignIn ? 'sign you in' : 'sign you out',
+      );
+
+      await AttendanceService.recordAttendance(studentId, isSignIn);
+
+      if (!mounted) return;
+      Navigator.pop(context); // Close loading dialog
 
       final student = allStudents.firstWhere(
-        (std) => std.regNo == studentId,
+        (std) => std.studentId == studentId,
         orElse: () => Student(
             name: 'Unknown', regNo: '', currentClass: '', personInfo: {}),
       );
 
-      final isAlreadySignedOut =
-          await AttendanceService.checkIfStudentIsSignedOut(
-              studentId, selectedDate);
-
-      final isAlreadySignedIn =
-          await AttendanceService.checkIfStudentIsSignedIn(
-              studentId, selectedDate);
-
-      if (isSignIn) {
-        if (isAlreadySignedIn) {
-          _showErrorDialog("Student is already signed in today");
-          return;
-        }
-
-        await AttendanceService.recordAttendance(studentId, isSignIn);
-        _showSuccessDialog(
-            "Attendance recorded for student ${student.name} of class ${student.currentClass} as sign in",
-            student);
-      } else {
-        if (isAlreadySignedOut) {
-          _showErrorDialog("Student is already signed out today");
-          return;
-        }
-
-        if (!isAlreadySignedIn) {
-          _showErrorDialog("Student has not signed in for today");
-          return;
-        }
-
-        await AttendanceService.recordAttendance(studentId, isSignIn);
-        _showSuccessDialog(
-            "Attendance recorded for student ${student.name} of class ${student.currentClass} as sign out",
-            student);
-      }
+      successDialog(
+        isSignIn ? "Signed In successfully" : "Signed Out successfully",
+        student,
+        isSignIn,
+      );
     } catch (e) {
-      _showErrorDialog(e.toString());
+      if (!mounted) return;
+      Navigator.pop(context); // Close loading dialog
+      _showErrorDialog(message: e.toString().replaceFirst('', ''));
       debugPrint("Error: $e");
     }
   }
@@ -751,69 +944,15 @@ class AttendanceAdminDashboardState extends State<AttendanceAdminDashboard> {
     }
   }
 
-  void _showErrorDialog(String message) {
+  void _showErrorDialog({required String message, String? errorCode}) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         bool isPaused = false;
 
-        Future.delayed(const Duration(seconds: 5), () {
+        Future.delayed(const Duration(seconds: 10), () {
           if (!isPaused && mounted) {
             Navigator.of(context).pop();
-          }
-        });
-
-        return StatefulBuilder(builder: (context, setState) {
-          return AlertDialog(
-            title: const Text("Error"),
-            content: Text(message),
-            actions: <Widget>[
-              TextButton(
-                child: Text(isPaused ? "Continue" : "Pause"),
-                onPressed: () {
-                  setState(() => isPaused = !isPaused);
-                  if (isPaused == true) {
-                  } else {
-                    Future.delayed(const Duration(seconds: 5), () {
-                      if (!isPaused && mounted) {
-                        Navigator.of(context).pop();
-                      }
-                    });
-                  }
-                },
-              ),
-              TextButton(
-                child: const Text("Close"),
-                onPressed: () {
-                  isPaused = true;
-                  Navigator.of(context).pop();
-                },
-              ),
-            ],
-          );
-        });
-      },
-    );
-  }
-
-  void _showSuccessDialog(String message, Student student) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        bool isPaused = false;
-        Future.delayed(const Duration(seconds: 5), () {
-          if (!isPaused && mounted) {
-            Navigator.of(context).pop();
-            _qrScanner.getScannedQrBarCode(
-              context: context,
-              onCode: (code) async {
-                debugPrint("Code scanned = $code");
-                final refinedCode = code?.substring(
-                    58); // removing the default word "Code scanned = https://adokwebsolutions.com.ng/verify?reg=" from the scanned result
-                    debugPrint("Refined code = $refinedCode");
-                await _handleAttendanceRecord(refinedCode!, true);
-              },
-            );
           }
         });
 
@@ -821,74 +960,68 @@ class AttendanceAdminDashboardState extends State<AttendanceAdminDashboard> {
           return AlertDialog(
             title: Row(
               children: [
-                const Icon(Icons.check, color: Colors.green),
-                Text("Success", style: TextStyle(color: Colors.green)),
+                const Icon(Icons.dangerous, color: Colors.red, size: 28),
+                const SizedBox(width: 12),
+                const Text('Error!',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
               ],
             ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: CircleAvatar(
-                    radius: 50,
-                    backgroundImage: NetworkImage(student.photo!),
+            content: SizedBox(
+                width: 400,
+                height: 100,
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      const Text(
+                        'An error occurred',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 20,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      Text(
+                        message,
+                        style: const TextStyle(
+                          color: Colors.black87,
+                          height: 1.5,
+                        ),
+                      ),
+                      if (errorCode != null) const SizedBox(height: 8),
+                      if (errorCode != null)
+                        Text(
+                          'Error Code: $errorCode',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.red,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                    ],
                   ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  student.name,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-                Text(
-                  "Class: ${student.currentClass}",
-                  style: const TextStyle(fontSize: 14),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  message,
-                  style: const TextStyle(fontSize: 14),
-                )
-              ],
-            ),
+                )),
             actions: <Widget>[
-              TextButton(
-                child: Text(isPaused ? "Continue" : "Pause"),
+              TextButton.icon(
+                icon: Icon(isPaused ? Icons.play_arrow : Icons.pause),
+                label: Text(isPaused ? "Continue" : "Pause"),
                 onPressed: () {
                   setState(() => isPaused = !isPaused);
-
                   if (isPaused == true) {
                   } else {
                     Future.delayed(const Duration(seconds: 5), () {
                       if (!isPaused && mounted) {
                         Navigator.of(context).pop();
-                        _qrScanner.getScannedQrBarCode(
-                          context: context,
-                          onCode: (code) async {
-                            final refinedCode = code?.substring(
-                                15); // removing the default word "Code scanned = " from the scanned result
-                            await _handleAttendanceRecord(refinedCode!, true);
-                          },
-                        );
                       }
                     });
                   }
                 },
               ),
-              TextButton(
-                child: const Text("Close"),
+              TextButton.icon(
+                icon: const Icon(Icons.close),
+                label: const Text("Close"),
                 onPressed: () {
                   isPaused = true;
                   Navigator.of(context).pop();
-                  _qrScanner.getScannedQrBarCode(
-                    context: context,
-                    onCode: (code) async {
-                      final refinedCode = code?.substring(
-                          15); // removing the default word "Code scanned = " from the scanned result
-                      await _handleAttendanceRecord(refinedCode!, true);
-                    },
-                  );
                 },
               ),
             ],
@@ -897,41 +1030,41 @@ class AttendanceAdminDashboardState extends State<AttendanceAdminDashboard> {
       },
     );
   }
+
+  // Helper method to start the next QR scan
+  void _startNextScan(bool isSignIn) {
+    try {
+      _qrScanner.getScannedQrBarCode(
+        context: context,
+        onCode: (code) async {
+          if (code == null || code.isEmpty) {
+            _showErrorDialog(message: "No QR code detected");
+            return;
+          }
+
+          const prefix =
+              "Code scanned = https://adokwebsolutions.com.ng/verify?reg=";
+          if (!code.startsWith(prefix)) {
+            _showErrorDialog(message: "Invalid QR code format");
+            return;
+          }
+
+          final refinedCode = code.substring(prefix.length);
+          if (refinedCode.isEmpty) {
+            _showErrorDialog(message: "Invalid student ID");
+            return;
+          }
+
+          await _handleAttendanceRecord(refinedCode, isSignIn);
+        },
+      );
+    } catch (e) {
+      _showErrorDialog(message: "Error starting QR scanner: ${e.toString()}");
+    }
+  }
 }
 
 class AttendanceService {
-  static Future<bool> checkIfStudentIsSignedIn(
-      String studentId, DateTime date) async {
-    final startOfDay = _startOfDay(date);
-    final endOfDay = _endOfDay(date);
-
-    Query query = FirebaseFirestore.instance
-        .collection('attendance')
-        .where('studentId', isEqualTo: studentId)
-        .where('timeStamp', isGreaterThanOrEqualTo: startOfDay)
-        .where('timeStamp', isLessThanOrEqualTo: endOfDay)
-        .where('status', isEqualTo: 'Signed In');
-
-    final snapshot = await query.get();
-    return snapshot.docs.isNotEmpty;
-  }
-
-  static Future<bool> checkIfStudentIsSignedOut(
-      String studentId, DateTime date) async {
-    final startOfDay = _startOfDay(date);
-    final endOfDay = _endOfDay(date);
-
-    Query query = FirebaseFirestore.instance
-        .collection('attendance')
-        .where('studentId', isEqualTo: studentId)
-        .where('timeStamp', isGreaterThanOrEqualTo: startOfDay)
-        .where('timeStamp', isLessThanOrEqualTo: endOfDay)
-        .where('status', isEqualTo: 'Signed Out');
-
-    final snapshot = await query.get();
-    return snapshot.docs.isNotEmpty;
-  }
-
   static Stream<List<Attendance>> fetchFilteredAttendance({
     required DateTime date,
     String? classFilter,
@@ -954,40 +1087,61 @@ class AttendanceService {
   }
 
   static Future<void> recordAttendance(String studentId, bool isSignIn) async {
+    // Validate student exists first
+    final studentExists = await AttendanceService.studentExists(studentId);
+    if (!studentExists) {
+      throw Exception(
+          "the staff with ID: $studentId does not exist in our database.");
+    }
+
     final today = DateTime.now();
     final dateKey = "${studentId}_${today.toIso8601String().split('T').first}";
     final attendanceDoc =
         FirebaseFirestore.instance.collection('attendance').doc(dateKey);
 
     final snapshot = await attendanceDoc.get();
+    final now = Timestamp.now();
 
     if (snapshot.exists) {
       final data = snapshot.data()!;
-      if (data['studentId'] == studentId &&
-          isSignIn == false &&
-          data['signOutTime'] == null) {
-        await attendanceDoc.update({
-          'signOutTime': Timestamp.now(),
-          'status': 'Signed Out',
-        });
-      } else if (data['studentId'] == studentId &&
-          data['signOutTime'] != null &&
-          isSignIn == false) {
-        throw Exception("Student has already signed out.");
-      } else if (data['studentId'] == studentId &&
-          data['signOutTime'] == null &&
-          isSignIn == true) {
-        throw Exception("Student is already Signed In.");
+
+      if (isSignIn) {
+        if (data['signOutTime'] != null) {
+          throw Exception(
+              "Cannot sign in again after signing out for the day.");
+        }
+        if (data['signInTime'] != null) {
+          throw Exception("Already signed in for today.");
+        }
+      } else {
+        if (data['signInTime'] == null) {
+          throw Exception("Staff has not yet signed in for today.");
+        }
+        if (data['signOutTime'] != null) {
+          throw Exception("Already signed out for today.");
+        }
       }
+
+      // Update existing record
+      await attendanceDoc.update({
+        if (!isSignIn) 'signOutTime': now,
+        'status': isSignIn ? 'Signed In' : 'Signed Out',
+        'timeStamp': now,
+      });
     } else {
+      if (!isSignIn) {
+        throw Exception("Cannot sign out without first signing in.");
+      }
+
+      // Create new record
       await attendanceDoc.set({
         'studentId': studentId,
         'date': Timestamp.fromDate(today),
-        'signInTime': isSignIn ? Timestamp.now() : null,
-        'status': isSignIn ? 'Signed In' : 'Signed Out',
-        'signOutTime': isSignIn ? null : Timestamp.now(),
+        'signInTime': now,
+        'signOutTime': null,
+        'status': 'Signed In',
         'currentClass': 'QBykrlq5m3IUXINQxr1h',
-        'timeStamp': Timestamp.now(),
+        'timeStamp': now,
       });
     }
   }
@@ -995,9 +1149,9 @@ class AttendanceService {
   static Future<bool> studentExists(String studentId) async {
     final studentDoc = await FirebaseFirestore.instance
         .collection('students')
-        .where('regNo', isEqualTo: studentId)
+        .doc(studentId)
         .get();
-    return studentDoc.docs.isNotEmpty;
+    return studentDoc.exists;
   }
 
   /// Returns the end of the day for the given date.

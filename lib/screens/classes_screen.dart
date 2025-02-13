@@ -404,7 +404,24 @@ class _ClassesScreenState extends State<ClassesScreen> {
       builder: (context) => const CreateClassDialog(),
     );
   }
+void _showSuccessDialog({msg, additionalContent}) {
+    SuccessDialog.show(
+        context: context, message: msg, additionalContent: additionalContent);
+  }
+  Future<void> errorDialog({message, errorCode}) {
+    return ErrorDialog.show(
+      context: context,
+      message: message!,
+      errorCode: errorCode!,
+    );
+  }
 
+  Future<void> loadingDialog(String? subtitle) {
+    return LoadingDialog.show(
+      context: context,
+      subtitle: subtitle!,
+    );
+  }
   Future<void> _showPerformanceDialog(
       String classId, String sessionId, String termId) async {
     showDialog(
@@ -469,7 +486,7 @@ class _ClassesScreenState extends State<ClassesScreen> {
 
               final scores = snapshot.data!.docs
                   .map((doc) => SubjectScore(
-                        regNo: doc.id,
+                        studentId: doc.id,
                         ca1: (doc.data() as Map<String, dynamic>)['ca1'],
                         ca2: (doc.data() as Map<String, dynamic>)['ca2'],
                         exam: (doc.data() as Map<String, dynamic>)['exam'],
@@ -523,7 +540,7 @@ class _ClassesScreenState extends State<ClassesScreen> {
                           ],
                           rows: scores.map((score) {
                             return DataRow(cells: [
-                              DataCell(Text(score.regNo)),
+                              DataCell(Text(score.studentId)),
                               DataCell(Text(score.ca1?.toString() ?? '-')),
                               DataCell(Text(score.ca2?.toString() ?? '-')),
                               DataCell(Text(score.exam?.toString() ?? '-')),

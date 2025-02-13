@@ -39,8 +39,8 @@ class FirebaseService {
 
       // Add all scores in batch
       for (final score in scores) {
-        if (score.regNo.isNotEmpty) {
-          final docRef = scoresRef.doc(score.regNo);
+        if (score.studentId.isNotEmpty) {
+          final docRef = scoresRef.doc(score.studentId);
           batch.set(docRef, score.toMap(), SetOptions(merge: true));
         }
       }
@@ -55,7 +55,7 @@ class FirebaseService {
   Future<void> setupClassStructure({
     required String classId,
     required List<String> sessions,
-    required Map<String, List<String>> termsAndSubjects,
+    Map<String, List<String>>? termsAndSubjects,
   }) async {
     final classRef =
         FirebaseFirestore.instance.collection('classes').doc(classId);
@@ -64,12 +64,18 @@ class FirebaseService {
 
       await sessionRef.set(Session(id: sessionRef.id, name: session).toMap());
 
-      for (final term in termsAndSubjects.keys) {
-        final termRef = sessionRef.collection('terms').doc();
-        await termRef.set(Term(id: termRef.id, name: term).toMap());
-        for (final subject in termsAndSubjects[term]!) {
-          final subjectRef = termRef.collection('subjects').doc();
-          await subjectRef.set(Subject(name: subject).toMap());
+      if (termsAndSubjects != null) {
+        for (final term in termsAndSubjects.keys) {
+          final termRef = sessionRef.collection('terms').doc();
+          await termRef.set(Term(id: termRef.id, name: term).toMap());
+          
+          final subjects = termsAndSubjects[term];
+          if (subjects != null && subjects.isNotEmpty) {
+            for (final subject in subjects) {
+              final subjectRef = termRef.collection('subjects').doc();
+              await subjectRef.set(Subject(name: subject).toMap());
+            }
+          }
         }
       }
     }
@@ -79,7 +85,7 @@ class FirebaseService {
     String classId,
     String newName, {
     required List<String> sessions,
-    required Map<String, List<String>> termsAndSubjects,
+    Map<String, List<String>>? termsAndSubjects,
   }) async {
     try {
       // Update class name
@@ -123,8 +129,8 @@ class FirebaseService {
           .collection('skillsAndTraits');
 
       for (var trait in traits) {
-        if (trait.regNo.isNotEmpty) {
-          final docRef = traitsRef.doc(trait.regNo);
+        if (trait.studentId.isNotEmpty) {
+          final docRef = traitsRef.doc(trait.studentId);
 
           final traitsMap = {
             'creativity': trait.creativity ?? 0,
@@ -171,8 +177,8 @@ class FirebaseService {
           .collection('scores');
 
       for (var score in scores) {
-        if (score.regNo.isNotEmpty) {
-          final docRef = scoresRef.doc(score.regNo);
+        if (score.studentId.isNotEmpty) {
+          final docRef = scoresRef.doc(score.studentId);
           final total = (score.ca1 ?? 0) + (score.ca2 ?? 0) + (score.exam ?? 0);
 
           final scoreMap = score.toMap();
