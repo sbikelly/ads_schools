@@ -492,6 +492,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+/*
   Future<String?> _selectClassDialog() async {
     return showDialog<String>(
       context: context,
@@ -528,7 +529,7 @@ class _HomeScreenState extends State<HomeScreen> {
       },
     );
   }
-
+*/
   Future<void> _showAnalytics() async {
     //TODO: Implement this method
     _showSnackBar('Analytics feature coming soon');

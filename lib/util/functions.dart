@@ -1,6 +1,5 @@
 import 'package:ads_schools/models/models.dart';
 import 'package:ads_schools/services/firebase_service.dart';
-import 'package:ads_schools/widgets/my_widgets.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:universal_html/html.dart' as html;
