@@ -18,12 +18,13 @@ dependencies:
   firebase_core: ^3.9.0
   flutter:
     sdk: flutter
+  flutter_dotenv: ^5.2.1
   flutter_stepindicator: ^0.1.7
   intl: ^0.19.0
   open_file: ^3.2.1
   path_provider: ^2.0.12
-  pdf:
-  printing:
+  #pdf:
+  #printing:
   syncfusion_flutter_xlsio: ^25.1.42
   universal_html: ^2.2.4
   url_launcher: ^6.1.8
@@ -38,9 +39,9 @@ dev_dependencies:
 
 dependency_overrides:
   pdf:
-    path: ../pdf
+    #path: ../pdf
   printing:
-    path: ../printing
+   # path: ../printing
 
 flutter:
   uses-material-design: true

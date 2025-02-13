@@ -2,19 +2,22 @@ import 'package:ads_schools/screens/home.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  await dotenv.load();
   if (kIsWeb) {
     await Firebase.initializeApp(
-      options: const FirebaseOptions(
-          apiKey: "AIzaSyCepN5IF9hpBPvtWMyQciBn4pL7TYmtJXE",
-          authDomain: "school-b50fb.firebaseapp.com",
-          projectId: "school-b50fb",
-          storageBucket: "school-b50fb.firebasestorage.app",
-          messagingSenderId: "760268818180",
-          appId: "1:760268818180:web:3c2d81209b8ec285943251",
-          measurementId: "G-391GHP51GH"),
+      options: FirebaseOptions(
+          apiKey: dotenv.env['apiKey'] ?? '',
+          authDomain: dotenv.env['authDomain'] ?? '',
+          projectId: dotenv.env['projectId'] ?? '',
+          storageBucket: dotenv.env['storageBucket']??'',
+          messagingSenderId: dotenv.env['messagingSenderId']??'',
+          appId: dotenv.env['appId']??'',
+          measurementId: dotenv.env['measurementId']  ??''       ),
     );
   } else {
     await Firebase.initializeApp();
