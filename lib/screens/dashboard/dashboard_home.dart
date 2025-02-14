@@ -35,101 +35,141 @@ class MainHome extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Listen to auth state changes
     return Consumer<AuthService>(builder: (context, authService, _) {
-      // Redirect to login if not authenticated
       if (authService.isAuthenticated) {
         return const LoginScreen();
       }
 
-      // Show dashboard if authenticated
       return Scaffold(
-        appBar: MyAppBar(isLoading: false),
-        body: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 90),
-          child: GridView.count(
-            crossAxisCount: 4,
-            crossAxisSpacing: 64,
-            mainAxisSpacing: 64,
-            children: [
-              _buildCard(
-                context,
-                icon: Icons.room,
-                title: "Classes",
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => const ClassesScreen()),
-                  );
+        appBar: MyAppBar(isLoading: false, title: 'Home',),
+        body: LayoutBuilder(
+          builder: (context, constraints) {
+            int crossAxisCount = 4;
+            double crossAxisSpacing = 64;
+            double mainAxisSpacing = 64;
+
+            if (constraints.maxWidth < 1200) {
+              crossAxisCount = 3;
+              crossAxisSpacing = 32;
+              mainAxisSpacing = 32;
+            }
+            if (constraints.maxWidth < 800) {
+              crossAxisCount = 2;
+              crossAxisSpacing = 16;
+              mainAxisSpacing = 16;
+            }
+            if (constraints.maxWidth < 600) {
+              crossAxisCount = 1;
+              crossAxisSpacing = 8;
+              mainAxisSpacing = 8;
+            }
+
+            return Padding(
+              padding: const EdgeInsets.all(20),
+              child: GridView.builder(
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: crossAxisCount,
+                  crossAxisSpacing: crossAxisSpacing,
+                  mainAxisSpacing: mainAxisSpacing,
+                ),
+                itemCount: 8,
+                itemBuilder: (context, index) {
+                  switch (index) {
+                    case 0:
+                      return _buildCard(
+                        context,
+                        icon: Icons.room,
+                        title: "Classes",
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => const ClassesScreen()),
+                          );
+                        },
+                      );
+                    case 1:
+                      return _buildCard(
+                        context,
+                        icon: Icons.people,
+                        title: "Students",
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => StudentsScreen()),
+                          );
+                        },
+                      );
+                    case 2:
+                      return _buildCard(
+                        context,
+                        icon: Icons.book_online,
+                        title: "Subjects",
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => SubjectScreen()),
+                          );
+                        },
+                      );
+                    case 3:
+                      return _buildCard(
+                        context,
+                        icon: Icons.travel_explore,
+                        title: "Attendance",
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) =>
+                                    AttendanceAdminDashboard()),
+                          );
+                        },
+                      );
+                    case 4:
+                      return _buildCard(
+                        context,
+                        icon: Icons.report,
+                        title: "Reports",
+                        onTap: () {},
+                      );
+                    case 5:
+                      return _buildCard(
+                        context,
+                        icon: Icons.bookmark,
+                        title: "Templates",
+                        onTap: () {},
+                      );
+                    case 6:
+                      return _buildCard(
+                        context,
+                        icon: Icons.bar_chart,
+                        title: "Analytics",
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) =>
+                                    AttendanceAdminDashboard()),
+                          );
+                        },
+                      );
+                    case 7:
+                      return _buildCard(
+                        context,
+                        icon: Icons.settings,
+                        title: "Settings",
+                        onTap: () {},
+                      );
+                    default:
+                      return Container();
+                  }
                 },
               ),
-              _buildCard(
-                context,
-                icon: Icons.people,
-                title: "Students",
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => StudentsScreen()),
-                  );
-                },
-              ),
-              _buildCard(
-                context,
-                icon: Icons.book_online,
-                title: "Subjects",
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => SubjectScreen()),
-                  );
-                },
-              ),
-              _buildCard(
-                context,
-                icon: Icons.travel_explore,
-                title: "Attendance",
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => AttendanceAdminDashboard()),
-                  );
-                },
-              ),
-              _buildCard(
-                context,
-                icon: Icons.report,
-                title: "Reports",
-                onTap: () {},
-              ),
-              _buildCard(
-                context,
-                icon: Icons.bookmark,
-                title: "Templates",
-                onTap: () {},
-              ),
-              _buildCard(
-                context,
-                icon: Icons.bar_chart,
-                title: "Analytics",
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => AttendanceAdminDashboard()),
-                  );
-                },
-              ),
-              _buildCard(
-                context,
-                icon: Icons.settings,
-                title: "Settings",
-                onTap: () {},
-              ),
-            ],
-          ),
+            );
+          },
         ),
       );
     });

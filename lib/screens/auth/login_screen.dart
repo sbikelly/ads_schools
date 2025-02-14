@@ -49,8 +49,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       ? _buildRightPanel()
                       : Row(
                           children: [
-                            //_buildLeftPanel(),
-                            Spacer(),
+                            _buildLeftPanel(),
+                            //Spacer(),
                             _buildRightPanel(),
                           ],
                         );
@@ -140,7 +140,7 @@ class _LoginScreenState extends State<LoginScreen> {
             bottomLeft: Radius.circular(50.0),
           ),
           image: const DecorationImage(
-            image: AssetImage('badge.png' /*'backgrounds/app-banner.png'*/),
+            image: AssetImage('banner.jpeg' /*'backgrounds/app-banner.png'*/),
             fit: BoxFit.cover,
             opacity: 0.7,
           ),
@@ -191,7 +191,7 @@ class _LoginScreenState extends State<LoginScreen> {
         padding: const EdgeInsets.all(30.0),
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.7),
-          borderRadius: Responsive.isDesktop(context)
+          borderRadius: Responsive.isMobile(context)
               ? const BorderRadius.all(Radius.circular(50.0))
               : const BorderRadius.only(
                   topRight: Radius.circular(50.0),
@@ -440,23 +440,12 @@ class _LoginScreenState extends State<LoginScreen> {
       final authService = Provider.of<AuthService>(context, listen: false);
       User? user = await authService.signInAnonymously();
 
-      if (user != null) {
-        // Use pushAndRemoveUntil to clear the navigation stack
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const MainHome()),
-          (route) => false, // Removes all previous routes
-        );
-      } else {
-        _handleError("Anonymous sign in failed");
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Sign in failed'),
-            behavior: SnackBarBehavior.floating,
-            showCloseIcon: true,
-          ),
-        );
-      }
-    } catch (e) {
+      // Use pushAndRemoveUntil to clear the navigation stack
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const MainHome()),
+        (route) => false, // Removes all previous routes
+      );
+        } catch (e) {
       _handleError("Failed to sign in anonymously");
     } finally {
       if (mounted) {
@@ -478,16 +467,12 @@ class _LoginScreenState extends State<LoginScreen> {
       User? user = await authService.signIn(
           _emailController.text, _passwordController.text);
 
-      if (user != null) {
-        // Use pushAndRemoveUntil to clear the navigation stack
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const MainHome()),
-          (route) => false, // Removes all previous routes
-        );
-      } else {
-        _handleError("Invalid credentials");
-      }
-    } catch (e) {
+      // Use pushAndRemoveUntil to clear the navigation stack
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const MainHome()),
+        (route) => false, // Removes all previous routes
+      );
+        } catch (e) {
       _handleError("Failed to sign in. Please try again.");
     } finally {
       if (mounted) {

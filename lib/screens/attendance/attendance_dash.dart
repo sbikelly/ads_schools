@@ -32,6 +32,7 @@ class AttendanceAdminDashboardState extends State<AttendanceAdminDashboard> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: MyAppBar(
+        title: 'Attendance DashBoard',
         isLoading: isLoading,
       ),
       body: isLoading

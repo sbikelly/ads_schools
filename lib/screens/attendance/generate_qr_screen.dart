@@ -173,7 +173,7 @@ class StudentIdCardGenerator {
           pw.Divider(color: mainPDFColor, thickness: 1),
           pw.Container(
             height: 18,
-            child: pw.Text('STAFF ID CARD',
+            child: pw.Text('STUDENT ID CARD',
                 style: pw.TextStyle(
                     font: headerFont[1],
                     fontWeight: pw.FontWeight.bold,
@@ -269,7 +269,7 @@ class StudentIdCardGenerator {
         (await rootBundle.load('app-logo.png')).buffer.asUint8List(),
       );
       final hologramPattern = pw.MemoryImage(
-        (await rootBundle.load('hologram_pattern.jpeg')).buffer.asUint8List(),
+        (await rootBundle.load('badge0.png')).buffer.asUint8List(),
       );
 
       // Load student photo with error handling
@@ -346,20 +346,27 @@ class StudentIdCardGenerator {
       //padding: const pw.EdgeInsets.symmetric(horizontal: 10),
       child: pw.Table(
         columnWidths: const {
-          0: pw.FlexColumnWidth(1.5),
-          1: pw.FlexColumnWidth(3),
+          0: pw.FlexColumnWidth(1),
+          1: pw.FlexColumnWidth(4),
         },
         children: [
           _buildTableRow('Name:', student.name.toUpperCase(), headerFont,
               underline: true),
-          _buildTableRow('I.D No.:', student.regNo, headerFont,
+          _buildTableRow('Matric No.:', student.regNo, headerFont,
               underline: true),
           _buildTableRow('Dept.:', student.currentClass, headerFont,
               underline: true),
-          _buildTableRow('D.O.B:', _formatDate(student.dob), headerFont,
+          _buildTableRow('Gender:', student.gender ?? 'N/A', headerFont,
               underline: true),
-          _buildTableRow('B.G:', student.bloodGroup ?? 'N/A', headerFont,
+          pw.TableRow(children: [
+            _buildDOBBGRow('D.O.B:', _formatDate(student.dob), headerFont,
               underline: true),
+            pw.SizedBox(width: 5),
+            _buildDOBBGRow('BG:', student.bloodGroup ?? 'N/A', headerFont,
+              underline: true),
+
+          ],)
+          
         ],
       ),
     );
@@ -378,6 +385,34 @@ class StudentIdCardGenerator {
                 : null,
             child: pw.Text(label,
                 style: pw.TextStyle(font: headerFont[1], color: mainPDFColor))),
+        pw.Container(
+          decoration: underline
+              ? pw.BoxDecoration(
+                  border: pw.Border(
+                      bottom:
+                          pw.BorderSide(color: PdfColors.grey500, width: 0.5)))
+              : null,
+          child: pw.Text(value,
+              style:
+                  pw.TextStyle(font: headerFont[0], color: PdfColors.grey800)),
+        ),
+      ],
+    );
+  }
+  pw.Widget _buildDOBBGRow(String label, String value, headerFont,
+      {bool underline = false}) {
+    return pw.Row(
+      children: [
+        pw.Container(
+            decoration: underline
+                ? pw.BoxDecoration(
+                    border: pw.Border(
+                        bottom: pw.BorderSide(
+                            color: PdfColors.grey500, width: 0.5)))
+                : null,
+            child: pw.Text(label,
+                style: pw.TextStyle(font: headerFont[1], color: mainPDFColor))),
+            pw.SizedBox(width: 5),
         pw.Container(
           decoration: underline
               ? pw.BoxDecoration(

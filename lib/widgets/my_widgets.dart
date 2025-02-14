@@ -154,12 +154,13 @@ class LoadingDialog extends StatelessWidget {
 }
 
 class MyAppBar extends StatefulWidget implements PreferredSizeWidget {
+  final String? title;
   final bool isLoading;
 
   const MyAppBar({
-    Key? key, 
-    required this.isLoading,
-  }) : super(key: key);
+    super.key, 
+    required this.isLoading, this.title,
+  });
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
@@ -192,7 +193,11 @@ class _MyAppBarState extends State<MyAppBar> {
   Widget build(BuildContext context) {
     return AppBar(
       key: _scaffoldKey,
-      title: Row(
+      title: Text(widget.title??'', style: TextStyle(
+              color: Colors.white,
+              fontFamily: 'Bree_Serif',
+            ),),
+      /*Row(
         children: [
           Image.asset(
             'assets/app-logo.png',
@@ -208,7 +213,8 @@ class _MyAppBarState extends State<MyAppBar> {
             ),
           ),
         ],
-      ),
+      ),*/
+      centerTitle: true,
       iconTheme: const IconThemeData(color: Colors.white),
       backgroundColor: mainColor,
       actions: [

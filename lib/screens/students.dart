@@ -39,7 +39,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: MyAppBar(isLoading: isLoading),
+      appBar: MyAppBar(isLoading: isLoading, title: 'Students'),
       body: _buildDataTable(),
     );
   }

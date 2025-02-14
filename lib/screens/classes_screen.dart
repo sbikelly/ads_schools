@@ -29,7 +29,7 @@ class _ClassesScreenState extends State<ClassesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: MyAppBar(isLoading: isLoading),
+      appBar: MyAppBar(isLoading: isLoading, title: 'Classes'),
       body: Row(
         children: [
           // Classes List Panel

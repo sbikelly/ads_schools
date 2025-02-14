@@ -39,7 +39,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       key: _scaffoldKey,
-      appBar: MyAppBar(isLoading: isLoading),
+      appBar: MyAppBar(isLoading: isLoading,title: 'Home',),
       drawer: !kIsWeb ? _buildDrawer() : null,
       body: Row(
         children: [

@@ -19,7 +19,7 @@ class _SubjectScreenState extends State<SubjectScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: MyAppBar(isLoading: false),
+      appBar: MyAppBar(isLoading: false, title: 'Subjects'),
       floatingActionButton: IconButton(
         icon: const Icon(Icons.add),
         onPressed: () => _openSubjectDialog(),
