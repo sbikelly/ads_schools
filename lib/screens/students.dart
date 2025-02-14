@@ -246,10 +246,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
                     debugPrint("Error: $e");
                   }
                 }),
-            IconButton(
-              icon: const Icon(Icons.qr_code_scanner, size: 20),
-              onPressed: () {},
-            ),
+            
             IconButton(
               color: Colors.red,
               tooltip: 'Delete',

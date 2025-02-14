@@ -195,7 +195,8 @@ class _MyAppBarState extends State<MyAppBar> {
       key: _scaffoldKey,
       title: Text(widget.title??'', style: TextStyle(
               color: Colors.white,
-              fontFamily: 'Bree_Serif',
+              fontWeight: FontWeight.bold,
+              //fontFamily: 'Bree_Serif',
             ),),
       /*Row(
         children: [

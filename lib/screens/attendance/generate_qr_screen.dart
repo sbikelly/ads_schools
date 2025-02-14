@@ -352,7 +352,7 @@ class StudentIdCardGenerator {
         children: [
           _buildTableRow('Name:', student.name.toUpperCase(), headerFont,
               underline: true),
-          _buildTableRow('Matric No.:', student.regNo, headerFont,
+          _buildTableRow('Mat No.:', student.regNo, headerFont,
               underline: true),
           _buildTableRow('Dept.:', student.currentClass, headerFont,
               underline: true),
@@ -362,7 +362,7 @@ class StudentIdCardGenerator {
             _buildDOBBGRow('D.O.B:', _formatDate(student.dob), headerFont,
               underline: true),
             pw.SizedBox(width: 5),
-            _buildDOBBGRow('BG:', student.bloodGroup ?? 'N/A', headerFont,
+            _buildDOBBGRow('B.G:', student.bloodGroup ?? 'N/A', headerFont,
               underline: true),
 
           ],)
