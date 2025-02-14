@@ -346,8 +346,8 @@ class StudentIdCardGenerator {
       //padding: const pw.EdgeInsets.symmetric(horizontal: 10),
       child: pw.Table(
         columnWidths: const {
-          0: pw.FlexColumnWidth(1),
-          1: pw.FlexColumnWidth(4),
+          0: pw.FlexColumnWidth(1.5),
+          1: pw.FlexColumnWidth(3.5),
         },
         children: [
           _buildTableRow('Name:', student.name.toUpperCase(), headerFont,
